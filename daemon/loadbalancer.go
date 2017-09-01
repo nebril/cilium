@@ -32,7 +32,7 @@ import (
 // RevNAT value (feCilium.L3n4Addr) to the lb's RevNAT map for the given feCilium.ID.
 func (d *Daemon) addSVC2BPFMap(feCilium types.L3n4AddrID, feBPF lbmap.ServiceKey,
 	besBPF []lbmap.ServiceValue, addRevNAT bool) error {
-	log.Debugf("adding service %d to BPF maps", feCilium.ID)
+	log.Debugf("adding service %d to BPF maps", feCilium.String())
 
 	// Try to delete service before adding it and ignore errors as it might not exist.
 	err := d.svcDeleteByFrontendLocked(&feCilium.L3n4Addr)
@@ -49,7 +49,7 @@ func (d *Daemon) addSVC2BPFMap(feCilium types.L3n4AddrID, feBPF lbmap.ServiceKey
 	}
 
 	if addRevNAT {
-		log.Debugf("adding service %d to RevNATMap", feCilium.ID)
+		log.Debugf("adding service %s to RevNATMap", feCilium.String())
 		d.loadBalancer.RevNATMap[feCilium.ID] = *feCilium.L3n4Addr.DeepCopy()
 	}
 	return nil
@@ -61,7 +61,7 @@ func (d *Daemon) addSVC2BPFMap(feCilium types.L3n4AddrID, feBPF lbmap.ServiceKey
 //
 // Returns true if service was created.
 func (d *Daemon) SVCAdd(feL3n4Addr types.L3n4AddrID, be []types.LBBackEnd, addRevNAT bool) (bool, error) {
-	log.Debugf("adding service %d", feL3n4Addr.ID)
+	log.Debugf("adding service %s", feL3n4Addr)
 	if feL3n4Addr.ID == 0 {
 		return false, fmt.Errorf("invalid service ID 0")
 	}
@@ -73,7 +73,7 @@ func (d *Daemon) SVCAdd(feL3n4Addr types.L3n4AddrID, be []types.LBBackEnd, addRe
 	if feAddr == nil {
 		feAddr, err = PutL3n4Addr(feL3n4Addr.L3n4Addr, uint32(feL3n4Addr.ID))
 		if err != nil {
-			return false, fmt.Errorf("unable to store service %d in kvstore: %s", feL3n4Addr.ID, err)
+			return false, fmt.Errorf("unable to store service %s in kvstore: %s", feL3n4Addr.String(), err)
 		}
 		// This won't be atomic so we need to check if the baseID, feL3n4Addr.ID was given to the service
 		if feAddr.ID != feL3n4Addr.ID {
@@ -85,7 +85,7 @@ func (d *Daemon) SVCAdd(feL3n4Addr types.L3n4AddrID, be []types.LBBackEnd, addRe
 	feL3n4Addr256Sum := feL3n4Addr.L3n4Addr.SHA256Sum()
 
 	if feAddr256Sum != feL3n4Addr256Sum {
-		return false, fmt.Errorf("service ID %d is already registered to L3n4Addr %s, please choose a different ID", feL3n4Addr.ID, feAddr.L3n4Addr.String())
+		return false, fmt.Errorf("service ID %d is already registered to L3n4Addr %s, please choose a different ID", feL3n4Addr.ID, feAddr.String())
 	}
 
 	return d.svcAdd(feL3n4Addr, be, addRevNAT)
@@ -99,7 +99,7 @@ func (d *Daemon) SVCAdd(feL3n4Addr types.L3n4AddrID, be []types.LBBackEnd, addRe
 // therefore there won't be any traffic going to the given backends.
 // All of the backends added will be DeepCopied to the internal load balancer map.
 func (d *Daemon) svcAdd(feL3n4Addr types.L3n4AddrID, bes []types.LBBackEnd, addRevNAT bool) (bool, error) {
-	log.Debugf("adding svc with ID %d", feL3n4Addr.ID)
+	log.Debugf("adding service %s", feL3n4Addr.String())
 	// Move the slice to the loadbalancer map which has a mutex. If we don't
 	// copy the slice we might risk changing memory that should be locked.
 	beCpy := []types.LBBackEnd{}
@@ -207,7 +207,7 @@ func (h *deleteServiceID) Handle(params DeleteServiceIDParams) middleware.Respon
 	}
 
 	if err := h.d.svcDelete(svc); err != nil {
-		log.Warningf("DELETE /service/{id}: error deleting svc %v: %s", svc, err)
+		log.Warningf("DELETE /service/{id}: error deleting service %v: %s", svc, err)
 		return apierror.Error(DeleteServiceIDFailureCode, err)
 	}
 
@@ -239,7 +239,7 @@ func (d *Daemon) svcDelete(svc *types.LBSVC) error {
 }
 
 func (d *Daemon) svcDeleteBPF(svc *types.LBSVC) error {
-	log.Debugf("deleting service %d from BPF maps", svc.FE.ID)
+	log.Debugf("deleting service %s from BPF maps", svc.FE.String())
 	var svcKey lbmap.ServiceKey
 	if !svc.FE.IsIPv6() {
 		svcKey = lbmap.NewService4Key(svc.FE.IP, svc.FE.Port, 0)
@@ -454,7 +454,7 @@ func (d *Daemon) SyncLBMap() error {
 	failedSyncRevNAT := map[types.ServiceID]types.L3n4Addr{}
 
 	addSVC2BPFMap := func(oldID types.ServiceID, svc types.LBSVC) error {
-		log.Debugf("adding service ID %d with sha %s", oldID, svc.FE.SHA256Sum())
+		log.Debugf("adding service ID %d with SHA %s", oldID, svc.FE.SHA256Sum())
 		// check if the ID for revNat is present in the bpf map, update the
 		// reverse nat key, delete the old one.
 		revNAT, ok := newRevNATMap[oldID]
@@ -475,7 +475,7 @@ func (d *Daemon) SyncLBMap() error {
 
 			log.Debugf("deleting old ID %d from newRevNATMap", oldID)
 			delete(newRevNATMap, oldID)
-			log.Debugf("adding service %d --> revNAT: %s to newRevNATMap", svc.FE.ID, revNAT)
+			log.Debugf("adding service %s --> revNAT: %s to newRevNATMap", svc.FE.String(), revNAT)
 			newRevNATMap[svc.FE.ID] = revNAT
 		}
 

@@ -117,7 +117,7 @@ type RRSeqValue struct {
 func (s RRSeqValue) GetValuePtr() unsafe.Pointer { return unsafe.Pointer(&s) }
 
 func UpdateService(key ServiceKey, value ServiceValue) error {
-	log.Debugf("adding backend: %s for frontend: %s to BPF maps", key, value)
+	log.Debugf("adding frontend: %s for backend: %s to BPF maps", key, value)
 	if key.GetBackend() != 0 && value.RevNatKey().GetKey() == 0 {
 		return fmt.Errorf("invalid RevNat ID (0) in the Service Value")
 	}
@@ -370,7 +370,7 @@ func AddSVC2BPFMap(fe ServiceKey, besValues []ServiceValue, addRevNAT bool, revN
 // L3n4Addr2ServiceKey converts the given l3n4Addr to a ServiceKey with the slave ID
 // set to 0.
 func L3n4Addr2ServiceKey(l3n4Addr types.L3n4AddrID) ServiceKey {
-	log.Debugf("converting L3n4Addr %d to ServiceKey", l3n4Addr.ID)
+	log.Debugf("converting L3n4Addr %s to ServiceKey", l3n4Addr.String())
 	if l3n4Addr.IsIPv6() {
 		return NewService6Key(l3n4Addr.IP, l3n4Addr.Port, 0)
 	}
@@ -379,7 +379,8 @@ func L3n4Addr2ServiceKey(l3n4Addr types.L3n4AddrID) ServiceKey {
 
 // LBSVC2ServiceKeynValue transforms the SVC Cilium type into a bpf SVC type.
 func LBSVC2ServiceKeynValue(svc types.LBSVC) (ServiceKey, []ServiceValue, error) {
-	log.Debugf("converting Cilium service %d into BPF service", svc.FE.ID)
+	log.Debugf("converting Cilium load-balancer service (frontend: %s, "+
+		"backend(s): %v) into BPF service", svc.FE.String(), svc.BES)
 	fe := L3n4Addr2ServiceKey(svc.FE)
 
 	// Create a list of ServiceValues so we know everything is safe to put in the lb
@@ -397,7 +398,9 @@ func LBSVC2ServiceKeynValue(svc types.LBSVC) (ServiceKey, []ServiceValue, error)
 		besValues = append(besValues, beValue)
 		log.Debugf("associating frontend: %s --> backend: %s", fe, beValue)
 	}
-
+	log.Debugf("converted LBSVC (frontend: %s, backend(s): %v), to "+
+		"ServiceKey: %s, ServiceValue(s): %v", svc.FE.String(), svc.BES, fe.String(),
+		besValues)
 	return fe, besValues, nil
 }
 

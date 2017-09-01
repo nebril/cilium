@@ -108,19 +108,19 @@ func (lb *LoadBalancer) AddService(svc LBSVC) bool {
 	oldSvc, ok := lb.SVCMapID[svc.FE.ID]
 	if ok {
 		// If service already existed, remove old entry from Cilium's map
-		log.Debugf("service %d is already in lb.SVCMapID; deleting old entry and updating it with new entry", svc.FE.ID)
+		log.Debugf("service %s is already in lb.SVCMapID; deleting old entry and updating it with new entry", svc.FE.String())
 		delete(lb.SVCMap, oldSvc.Sha256)
 	}
-	log.Debugf("adding service %d with SHA %d to lb.SVCMap", svc.FE.ID, svc.Sha256)
+	log.Debugf("adding service %s with SHA %s to lb.SVCMap", svc.FE.String(), svc.Sha256)
 	lb.SVCMap[svc.Sha256] = svc
-	log.Debugf("adding service %d to lb.SVCMapID", svc.FE.ID)
+	log.Debugf("adding service %s to lb.SVCMapID", svc.FE.String())
 	lb.SVCMapID[svc.FE.ID] = &svc
 	return !ok
 }
 
 // DeleteService deletes svc from lb's SVCMap and SVCMapID.
 func (lb *LoadBalancer) DeleteService(svc *LBSVC) {
-	log.Debugf("deleting service %d from lb.SVCMap, lb.SVCMapID", svc.FE.ID)
+	log.Debugf("deleting service %s from lb.SVCMap, lb.SVCMapID", svc.FE.String())
 	delete(lb.SVCMap, svc.Sha256)
 	delete(lb.SVCMapID, svc.FE.ID)
 }
