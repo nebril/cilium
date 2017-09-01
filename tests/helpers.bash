@@ -22,6 +22,17 @@ for bin in "../cilium/cilium" \
         fi
 done
 
+function log {
+  save=$-
+  set +x
+  check_num_params "$#" "1"
+  message=$1
+  echo "${FUNCNAME[ 1 ]}: $message"
+  if [[ $save =~ x ]]; then
+    set -x
+  fi
+}
+
 function monitor_start {
   cilium monitor -v $@ > $DUMP_FILE &
   MONITOR_PID=$!
@@ -113,7 +124,7 @@ function wait_for_k8s_endpoints {
   local CILIUM_POD=$2
   local NUM=$3
   local FILTER=$4
-  echo "Waiting for $NUM endpoints in namespace $NAMESPACE managed by $CILIUM_POD"
+  log "Waiting for $NUM endpoints in namespace $NAMESPACE managed by $CILIUM_POD"
 
   # Wait some time for at least one endpoint to get into regenerating state
   # FIXME: Remove when this is reliable
@@ -122,11 +133,11 @@ function wait_for_k8s_endpoints {
   local sleep_time=1
   local iter=0
   local found=$(k8s_num_ready $NAMESPACE $CILIUM_POD $FILTER)
-  echo "found: $found"
+  log "found: $found"
   while [[ "$found" -ne "$NUM" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for $NUM endpoints"
+      log "Timeout while waiting for $NUM endpoints"
       exit 1
     else
       kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
@@ -134,7 +145,7 @@ function wait_for_k8s_endpoints {
       sleep $sleep_time
     fi
     found=$(k8s_num_ready $NAMESPACE $CILIUM_POD $FILTER)
-    echo "found: $found"
+    log "found: $found"
   done
 
   set -x
@@ -195,19 +206,19 @@ function wait_for_cilium_ep_gen {
   while [[ "$check_cmd_iter" -lt "10" ]]; do    
     if [[ "$total_cmd_iter" -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
       echo ""
-      echo "$ERROR_OUTPUT"
+      log "$ERROR_OUTPUT"
       exit 1
     fi
 
     local iter=0
     local found=$(eval "$CMD")
-    echo "found: $found"
+    log "found: $found"
 
     while [[ "$found" -ne "$NUM_DESIRED" ]]; do
       echo "$found endpoints are still regenerating; want $NUM_DESIRED"
       if [[ $((iter++)) -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
         echo ""
-        echo $ERROR_OUTPUT
+        log $ERROR_OUTPUT
         exit 1
       else
         echo "still within time limit for waiting for endpoints to be in 'ready' state; sleeping and checking again"
@@ -218,7 +229,7 @@ function wait_for_cilium_ep_gen {
         sleep $sleep_time
       fi
       found=$(eval "${CMD}")
-      echo "found: $found"
+      log "found: $found"
     done
     check_cmd_iter=$(expr $check_cmd_iter + 1)
     total_cmd_iter=$(expr $total_cmd_iter + 1)
@@ -235,7 +246,7 @@ function wait_for_daemon_set_not_ready {
   local namespace="${1}"
   local name="${2}"
 
-  echo "Waiting for instances of Cilium daemon $name in namespace $namespace to be clean up"
+  log "Waiting for instances of Cilium daemon $name in namespace $namespace to be clean up"
 
   local sleep_time=2
   local iter=0
@@ -243,7 +254,7 @@ function wait_for_daemon_set_not_ready {
   until [[ "$found" -eq "1" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for cilium agent to be clean up by kubernetes"
+      log "Timeout while waiting for cilium agent to be clean up by kubernetes"
       print_k8s_cilium_logs
       exit 1
     else
@@ -291,7 +302,7 @@ function wait_for_running_pod {
   set +x
   pod=$1
   namespace=${2:-default}
-  echo "Waiting for ${pod} pod to be Running..."
+  log "Waiting for ${pod} pod to be Running..."
   wait_specified_time_test "test \"\$(kubectl get pods -n ${namespace} -o wide | grep ${pod} | grep -c Running)\" -eq \"1\"" "5"
   set -x
 }
@@ -299,7 +310,7 @@ function wait_for_running_pod {
 function wait_for_no_pods {
   set +x
   namespace=${1:-default}
-  echo "Waiting for no pods to be Running in namespace ${namespace}"
+  log "Waiting for no pods to be Running in namespace ${namespace}"
   wait_specified_time_test "test \"\$(kubectl get pods -n ${namespace} -o wide 2>&1 | grep -c 'No resources found')\" -eq \"1\"" "5"
   set -x
 }
@@ -308,7 +319,7 @@ function wait_for_n_running_pods {
   set +x
   check_num_params "$#" "1"
   local NPODS=$1
-  echo -n "Waiting for $NPODS running pods"
+  log "Waiting for $NPODS running pods"
 
   local sleep_time=1
   local iter=0
@@ -316,7 +327,7 @@ function wait_for_n_running_pods {
   until [[ "$found" -eq "$NPODS" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for $NPODS running pods"
+      log "Timeout while waiting for $NPODS running pods"
       exit 1
     else
       kubectl get pod -o wide
@@ -334,7 +345,7 @@ function wait_for_n_running_pods {
 function wait_for_healthy_k8s_cluster {
   set +x
   local NNODES=$1
-  echo "Waiting for healthy k8s cluster with $NNODES nodes"
+  log "Waiting for healthy k8s cluster with $NNODES nodes"
 
   local sleep_time=2
   local iter=0
@@ -342,11 +353,11 @@ function wait_for_healthy_k8s_cluster {
   until [[ "$found" -eq "3" ]]; do
     if [[ $((iter++)) -gt $((1*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for healthy kubernetes cluster"
+      log "Timeout while waiting for healthy kubernetes cluster"
       exit 1
     else
       kubectl get cs
-      echo "K8S Components ready: [${found}/3]"
+      log "K8S Components ready: [${found}/3]"
       sleep $sleep_time
     fi
     found=$(kubectl get cs | grep -v "STATUS" | grep -c "Healthy")
@@ -358,11 +369,11 @@ function wait_for_healthy_k8s_cluster {
   until [[ "$found" -eq "$NNODES" ]]; do
     if [[ $((iter++)) -gt $((1*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for all nodes to be Ready"
+      log "Timeout while waiting for all nodes to be Ready"
       exit 1
     else
       kubectl get nodes
-      echo "Nodes ready [${found}/${NNODES}]"
+      log "Nodes ready [${found}/${NNODES}]"
       sleep $sleep_time
     fi
     found=$(kubectl get nodes | grep Ready -c)
@@ -380,11 +391,11 @@ function k8s_nodes_policy_status {
   until [[ "${nodes}" -eq "${NNODES}" ]]; do
     if [[ $((iter++)) -gt $((1*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for $NNODES to have policy ${policy_ns}/${policy_name} installed"
+      log "Timeout while waiting for $NNODES to have policy ${policy_ns}/${policy_name} installed"
       exit 1
     else
       kubectl get nodes
-      echo "Nodes with policy accepted [${found}/${NNODES}]"
+      log "Nodes with policy accepted [${found}/${NNODES}]"
       sleep $sleep_time
     fi
     found=$(kubectl get nodes | grep Ready -c)
@@ -410,7 +421,7 @@ function gather_files {
   elif [[ "${TEST_SUITE}" == "k8s-tests" ]]; then
     CILIUM_DIR="${GOPATH}/${CILIUM_ROOT}/tests/k8s/tests/cilium-files/${TEST_NAME}"
   else
-    echo "${TEST_SUITE} not a valid value, continuing"
+    log "${TEST_SUITE} not a valid value, continuing"
     CILIUM_DIR="${GOPATH}/${CILIUM_ROOT}/tests/cilium-files/${TEST_NAME}"
   fi
   local RUN="/var/run/cilium"
@@ -478,7 +489,7 @@ function wait_for_daemon_set_ready {
   local name="${2}"
   local n_ds_expected="${3}"
 
-  echo "Waiting for $n_ds_expected instances of Cilium daemon $name in namespace $namespace to become ready"
+  log "Waiting for $n_ds_expected instances of Cilium daemon $name in namespace $namespace to become ready"
 
   local sleep_time=2
   local iter=0
@@ -486,7 +497,7 @@ function wait_for_daemon_set_ready {
   until [[ "$found" -eq "$n_ds_expected" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
-      echo "Timeout while waiting for cilium agent"
+      log "Timeout while waiting for cilium agent"
       print_k8s_cilium_logs
       exit 1
     else
@@ -524,12 +535,12 @@ function k8s_count_all_cluster_cilium_eps {
     total=$(( $total + $n_eps ))
   done
 
-  echo "$total"
+  log "$total"
 }
 
 function wait_for_api_server_ready {
   set +x
-  echo "Waiting for kube-apiserver to spin up"
+  log "Waiting for kube-apiserver to spin up"
   wait_specified_time_test "test \$(kubectl get cs)" "10"
   set -x
 }
@@ -541,7 +552,7 @@ function wait_for_service_endpoints_ready {
   local name="${2}"
   local port="${3}"
 
-  echo "Waiting for ${name} service endpoints to be ready"
+  log "Waiting for ${name} service endpoints to be ready"
   wait_specified_time_test "test \"\$(kubectl get endpoints -n ${namespace} ${name} | grep -c \":${port}\")\" -eq \"1\"" "5"
   echo "Done waiting for ${name} service endpoints to be ready"
   kubectl get endpoints -n ${namespace} ${name}
@@ -632,18 +643,18 @@ function copy_files_vm {
   # Check that the VM is running before we try to gather logs from it.
   check_vm_running $VM_NAME
 
-  echo "----- getting the VM identity file for $VM_NAME -----"
+  log "----- getting the VM identity file for $VM_NAME -----"
   local ID_FILE=$(get_vm_identity_file $VM_NAME)
-  echo "----- getting the port for $VM_NAME to SSH -----"
+  log "----- getting the port for $VM_NAME to SSH -----"
   local PORT=$(get_vm_ssh_port $VM_NAME)
 
-  echo "----- getting cilium logs from $VM_NAME -----"
+  log "----- getting cilium logs from $VM_NAME -----"
   vagrant ssh $VM_NAME -c 'sudo -E bash -c "journalctl --no-pager -u cilium > /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files/cilium-logs && chmod a+r /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files/cilium-logs"'
 
-  echo "----- listing all logs that will be gathered from $VM_NAME -----"
+  log "----- listing all logs that will be gathered from $VM_NAME -----"
   vagrant ssh $VM_NAME -c 'ls -altr /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files'
 
-  echo "----- copying logs from $VM_NAME onto VM host for accessibility after VM is destroyed -----"
+  log "----- copying logs from $VM_NAME onto VM host for accessibility after VM is destroyed -----"
   scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r -P ${PORT} -i ${ID_FILE} vagrant@127.0.0.1:/home/vagrant/go/src/github.com/cilium/cilium/${FILES_DIR} ${WORKSPACE}/cilium-files-${VM_NAME}
 }
 
@@ -672,16 +683,16 @@ function get_cilium_master_vm_name {
 function check_vm_running {
   check_num_params "$#" "1"
   local VM=$1
-  echo "----- getting status of VM $VM -----"
+  log "----- getting status of VM $VM -----"
   vagrant status $VM
-  echo "----- done getting status of VM $VM -----"
+  log "----- done getting status of VM $VM -----"
 
   local VM_STATUS=`vagrant status $VM | grep $VM | awk '{print $2}'`
   if [[ "${VM_STATUS}" != "running" ]]; then
-    echo "$VM is not in \"running\" state; exiting"
+    log "$VM is not in \"running\" state; exiting"
     exit 0
   else
-    echo "$VM is \"running\" continuing"
+    log "$VM is \"running\" continuing"
   fi
 }
 
@@ -729,7 +740,7 @@ function diff_timeout() {
 
   until [[ "$found" -eq "1" ]]; do
     if [[ $((iter++)) -gt $((30)) ]]; then
-      echo "Timeout"
+      log "Timeout"
       abort "$DIFF"
     fi
 
@@ -772,12 +783,12 @@ function wait_for_desired_state {
   local sleep_time=1
   local iter=0
   local found=$(eval "$CMD")
-  echo "found: $found"
+  log "found: $found"
 
   while [[ "$found" -ne "$NUM_DESIRED" ]]; do
     if [[ $((iter++)) -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
       echo ""
-      echo $ERROR_OUTPUT
+      log $ERROR_OUTPUT
       exit 1
     else
       eval "$INFO_CMD"
@@ -785,7 +796,7 @@ function wait_for_desired_state {
       sleep $sleep_time
     fi
     found=$(eval "${CMD}")
-    echo "found: $found"
+    log "found: $found"
   done
   set -x
   eval "${INFO_CMD}"
@@ -823,7 +834,7 @@ function wait_specified_time_test {
     iter=$((iter+1))
   done
   if [[ "${iter}" -ge $((${MAX_MINS}*60/$sleep_time)) ]]; then
-    echo "Timeout ${MAX_MINS} minutes exceeded for command \"$CMD\", Exiting with failure."
+    log "Timeout ${MAX_MINS} minutes exceeded for command \"$CMD\", Exiting with failure."
     set -x
     exit 1
   fi
