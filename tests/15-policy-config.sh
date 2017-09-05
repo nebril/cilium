@@ -7,24 +7,28 @@ CFG_CMD="cilium config | grep PolicyEnforcement | awk '{print \$2}'"
 ALLOWED="Verdict: allowed"
 
 function start_containers {
+  log "starting containers"
   docker run -dt --net=$TEST_NET --name foo -l id.foo -l id.teamA tgraf/netperf
   docker run -dt --net=$TEST_NET --name bar -l id.bar -l id.teamA tgraf/netperf
   docker run -dt --net=$TEST_NET --name baz -l id.baz tgraf/netperf
+  log "containers started and ready"
 }
 
 function remove_containers {
+  log "removing containers"
   docker rm -f foo bar baz 2> /dev/null || true
+  log "done removing containers"
 }
 
 function restart_cilium {
-  echo "------ restarting cilium ------"
+  log "restarting cilium "
   service cilium restart
-  echo "------ waiting for cilium agent get up and running ------"
+  log "waiting for cilium agent get up and running"
   wait_for_cilium_status
 }
 
 function import_test_policy {
-  echo "------ adding policy ------"
+  log "importing test policy"
   cat <<EOF | cilium -D policy import -
   [{
     "endpointSelector": {"matchLabels":{"id.bar":""}},
@@ -45,7 +49,7 @@ function cleanup {
 }
 
 function check_endpoints_policy_enabled {
-  echo "------ checking if all endpoints have policy enforcement enabled ------"
+  log "checking if all endpoints have policy enforcement enabled "
   POLICY_ENFORCED=`eval ${LIST_CMD}`
   for line in $POLICY_ENFORCED; do
     if [[ "$line" != "Enabled" ]]; then
@@ -57,19 +61,19 @@ function check_endpoints_policy_enabled {
 }
 
 function check_endpoints_policy_disabled {
-  echo "------ checking if all endpoints have policy enforcement disabled ------"
-        POLICY_ENFORCED=`eval ${LIST_CMD}`
+  log "checking if all endpoints have policy enforcement disabled "
+  POLICY_ENFORCED=`eval ${LIST_CMD}`
   for line in $POLICY_ENFORCED; do
     if [[ "$line" != "Disabled" ]]; then
       cilium config
       cilium endpoint list
-      abort "Policy Enforcement  should be set to 'Disabled' since policy enforcement was set to never be enabled"
+      abort "Policy Enforcement should be set to 'Disabled' for all endpoints"
     fi
   done
 }
 
 function check_config_policy_enabled {
-  echo "------ checking if cilium daemon has policy enforcement enabled ------"
+  log "checking if cilium daemon has policy enforcement enabled "
   cilium config
         POLICY_ENFORCED=`eval ${CFG_CMD}`
   for line in $POLICY_ENFORCED; do
@@ -82,7 +86,7 @@ function check_config_policy_enabled {
 }
 
 function check_config_policy_disabled {
-  echo "------ checking if cilium daemon has policy enforcement disabled ------"
+  log "checking if cilium daemon has policy enforcement disabled "
   cilium config
   POLICY_ENFORCED=`eval ${CFG_CMD}`
   for line in $POLICY_ENFORCED; do
@@ -95,7 +99,7 @@ function check_config_policy_disabled {
 }
 
 function check_config_policy_default {
-  echo "------ checking if cilium daemon has policy enforcement set to default ------"
+  log "checking if cilium daemon has policy enforcement set to default "
   cilium config
   POLICY_ENFORCED=`eval ${CFG_CMD}`
   for line in $POLICY_ENFORCED; do
@@ -108,7 +112,7 @@ function check_config_policy_default {
 }
 
 function test_default_policy_configuration {
-echo "------ test default configuration for enable-policy ------"
+  log "test default configuration for enable-policy "
   # cilium-agent has enable-policy flag, which by default is set as "default".
   # Expected behavior is that if Kubernetes is not enabled, policy enforcement is enabled if at least one policy exists.
   # If no policy exists, then policy enforcement is disabled.
@@ -117,7 +121,7 @@ echo "------ test default configuration for enable-policy ------"
   start_containers
 
   wait_for_endpoints 3
-        check_config_policy_default
+  check_config_policy_default
   check_endpoints_policy_disabled
   # TODO - renable when we clear conntrack state upon policy deletion.
   #ping_success foo bar
@@ -136,39 +140,39 @@ echo "------ test default configuration for enable-policy ------"
 }
 
 function test_default_to_true_policy_configuration {
-  echo "------ test that policy enforcement flag gets updated with no running endpoints: true ------"
+  log "test that policy enforcement flag gets updated with no running endpoints: true "
   remove_containers
   # Make sure cilium agent starts in 'default' mode, so restart it.
   restart_cilium
   import_test_policy
   check_config_policy_default
-  echo "------ setting cilium agent PolicyEnforcement=always"
+  log "setting cilium agent PolicyEnforcement=always"
   cilium config PolicyEnforcement=always
   check_config_policy_enabled
-  echo "------ deleting policy ------"
+  log "deleting policy "
   cilium policy delete --all
   # After policy is deleted, policy enforcement should still be enabled.
   check_config_policy_enabled
 }
 
 function test_default_to_false_policy_configuration {
-  echo "------ test that policy enforcement flag gets updated with no running endpoints: false ------"
+  log "test that policy enforcement flag gets updated with no running endpoints: false "
   remove_containers
   # Make sure cilium agent starts in 'default' mode, so restart it.
   restart_cilium
   import_test_policy
   check_config_policy_default
-  echo "------ setting cilium agent Policy=never"
+  log "setting cilium agent Policy=never"
   cilium config PolicyEnforcement=never
   check_config_policy_disabled
-  echo "------ deleting policy ------"
+  log "deleting policy "
   cilium policy delete --all
   # After policy is deleted, policy enforcement should be disabled.
   check_config_policy_disabled
 }
 
 function test_true_policy_configuration {
-  echo "------ test true configuration for enable-policy ------"
+  log "test true configuration for enable-policy "
   remove_containers
   restart_cilium
   cilium config PolicyEnforcement=always
@@ -193,7 +197,7 @@ function test_true_policy_configuration {
 }
 
 function test_false_policy_configuration {
-  echo "------ test false configuration for enable-policy ------"
+  log "test false configuration for enable-policy "
   remove_containers
   restart_cilium
   cilium config PolicyEnforcement=never
@@ -216,7 +220,7 @@ function test_false_policy_configuration {
 function ping_fail {
   C1=$1
   C2=$2
-  echo "------ pinging $C2 from $C1 (expecting failure) ------"
+  log "pinging $C2 from $C1 (expecting failure) "
   docker exec -i  ${C1} bash -c "ping -c 5 ${C2}" && {
       abort "Error: Unexpected success pinging ${C2} from ${C1}"
   }
@@ -225,7 +229,7 @@ function ping_fail {
 function ping_success {
   C1=$1
   C2=$2
-  echo "------ pinging $C2 from $C1 (expecting success) ------"
+  log "pinging $C2 from $C1 (expecting success) "
   docker exec -i ${C1} bash -c "ping -c 5 ${C2}" || {
     abort "Error: Could not ping ${C2} from ${C1}"
   }
@@ -240,9 +244,9 @@ function test_policy_trace_policy_disabled {
   wait_for_endpoints 3
   FOO_ID=$(cilium endpoint list | grep id.foo | awk '{print $1}')
   BAR_ID=$(cilium endpoint list | grep id.bar | awk '{ print $1}')  
-  echo "------ verify verbose trace for expected output using endpoint IDs ------"
+  log "verify verbose trace for expected output using endpoint IDs "
   TRACE_OUTPUT=$(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v)
-  DIFF=$(diff -Nru <(echo "$ALLOWED") <(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v | grep "Verdict:")) || true
+  DIFF=$(diff -Nru <(log "$ALLOWED") <(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v | grep "Verdict:")) || true
   if [[ "$DIFF" != "" ]]; then
     abort "DIFF: $DIFF"
   fi
