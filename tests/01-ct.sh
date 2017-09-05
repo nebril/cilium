@@ -33,7 +33,7 @@ function get_container_metadata {
   CLIENT_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.GlobalIPv6Address }}' client)
   log "CLIENT_IP: $CLIENT_IP"
   CLIENT_IP4=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.IPAddress }}' client)
-  log "CLIENT_IP_4: $CLIENT_IP_4"
+  log "CLIENT_IP4: $CLIENT_IP4"
   CLIENT_ID=$(cilium endpoint list | grep id.client | awk '{ print $1}')
   log "CLIENT_ID: $CLIENT_ID"
   SERVER_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.GlobalIPv6Address }}' server)
