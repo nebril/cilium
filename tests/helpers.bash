@@ -27,16 +27,18 @@ function log {
   set +x
   check_num_params "$#" "1"
   message=$1
-  echo "${FUNCNAME[ 1 ]}: $message"
+  echo "${FUNCNAME[ 1 ]}: ----- $message -----"
   restore_x_flag $save
 }
 
 function monitor_start {
+  log "starting monitor and dumping contents to $DUMP_FILE"
   cilium monitor -v $@ > $DUMP_FILE &
   MONITOR_PID=$!
 }
 
 function monitor_resume {
+  log "resuming monitor and dumping contents to $DUMP_FILE"
   cilium monitor -v $@ >> $DUMP_FILE &
   MONITOR_PID=$!
 }
@@ -44,6 +46,7 @@ function monitor_resume {
 function monitor_clear {
   local save=$-
   set +x
+  log "clearing monitor"
   cp /dev/null $DUMP_FILE
   nstat > /dev/null
   restore_x_flag $save
@@ -150,7 +153,8 @@ function wait_for_k8s_endpoints {
 
   local sleep_time=1
   local iter=0
-  local found=$(k8s_num_ready $NAMESPACE $CILIUM_POD $FILTER)
+  local found
+  found=$(k8s_num_ready "${NAMESPACE}" "${CILIUM_POD}" "${FILTER}")
   log "found: $found"
   while [[ "$found" -ne "$NUM" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
@@ -162,7 +166,7 @@ function wait_for_k8s_endpoints {
       echo -n " [${found}/${NUM}]"
       sleep $sleep_time
     fi
-    found=$(k8s_num_ready $NAMESPACE $CILIUM_POD $FILTER)
+    found=$(k8s_num_ready "${NAMESPACE}" "${CILIUM_POD}" "${FILTER}")
     log "found: $found"
   done
 
@@ -235,14 +239,15 @@ function wait_for_cilium_ep_gen {
     fi
 
     local iter=0
-    local found=$(eval "$CMD")
+    local found
+    found=$(eval "$CMD")
     log "found: $found"
 
     while [[ "$found" -ne "$NUM_DESIRED" ]]; do
       echo "$found endpoints are still regenerating; want $NUM_DESIRED"
       if [[ $((iter++)) -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
         echo ""
-        log $ERROR_OUTPUT
+        log "${ERROR_OUTPUT}"
         exit 1
       else
         echo "still within time limit for waiting for endpoints to be in 'ready' state; sleeping and checking again"
@@ -356,7 +361,8 @@ function wait_for_n_running_pods {
 
   local sleep_time=1
   local iter=0
-  local found=$(kubectl get pod | grep Running -c || true)
+  local found
+  found=$(kubectl get pod | grep Running -c || true)
   until [[ "$found" -eq "$NPODS" ]]; do
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
@@ -383,7 +389,8 @@ function wait_for_healthy_k8s_cluster {
 
   local sleep_time=2
   local iter=0
-  local found=$(kubectl get cs | grep -v "STATUS" | grep -c "Healthy")
+  local found
+  found=$(kubectl get cs | grep -v "STATUS" | grep -c "Healthy")
   until [[ "$found" -eq "3" ]]; do
     if [[ $((iter++)) -gt $((1*60/$sleep_time)) ]]; then
       echo ""
@@ -398,7 +405,8 @@ function wait_for_healthy_k8s_cluster {
   done
   kubectl get cs
   local iter=0
-  local found=$(kubectl get nodes | grep Ready -c)
+  local found
+  found=$(kubectl get nodes | grep Ready -c)
   until [[ "$found" -eq "$NNODES" ]]; do
     if [[ $((iter++)) -gt $((1*60/$sleep_time)) ]]; then
       echo ""
@@ -464,21 +472,21 @@ function gather_files {
   local LIB="/var/lib/cilium"
   local RUN_DIR="${CILIUM_DIR}${RUN}"
   local LIB_DIR="${CILIUM_DIR}${LIB}"
-  mkdir -p ${CILIUM_DIR}
-  mkdir -p ${RUN_DIR}
-  mkdir -p ${LIB_DIR}
+  mkdir -p "${CILIUM_DIR}"
+  mkdir -p "${RUN_DIR}"
+  mkdir -p "${LIB_DIR}"
   if [[ "${TEST_SUITE}" == "runtime-tests" ]]; then
     local CLI_OUT_DIR="${CILIUM_DIR}/cli"
-    mkdir -p ${CLI_OUT_DIR}
-    dump_cli_output ${CLI_OUT_DIR} || true
+    mkdir -p "${CLI_OUT_DIR}"
+    dump_cli_output "${CLI_OUT_DIR}" || true
     # Get logs from Consul container.
-    mkdir -p ${CILIUM_DIR}/consul
-    docker logs cilium-consul > ${CILIUM_DIR}/consul/consul-logs.txt 2>/dev/null
+    mkdir -p "${CILIUM_DIR}/consul"
+    docker logs cilium-consul > "${CILIUM_DIR}/consul/consul-logs.txt" 2>/dev/null
   fi
-  sudo cp -r ${RUN}/state ${RUN_DIR} || true
-  sudo cp -r ${LIB}/* ${LIB_DIR} || true
-  find ${CILIUM_DIR} -type d -exec sudo chmod 777 {} \;
-  find ${CILIUM_DIR} -exec sudo chmod a+r {} \;
+  sudo cp -r ${RUN}/state "${RUN_DIR}" || true
+  sudo cp -r ${LIB}/* "${LIB_DIR}" || true
+  find "${CILIUM_DIR}" -type d -exec sudo chmod 777 {} \;
+  find "${CILIUM_DIR}" -exec sudo chmod a+r {} \;
   restore_x_flag $save
 }
 
@@ -702,22 +710,24 @@ function copy_files_vm {
   check_num_params "$#" "2"
   local VM_NAME=$1
   local FILES_DIR=$2
+  local ID_FILE
+  local PORT
 
   # Check that the VM is running before we try to gather logs from it.
   check_vm_running $VM_NAME
 
-  log "----- getting the VM identity file for $VM_NAME -----"
-  local ID_FILE=$(get_vm_identity_file $VM_NAME)
-  log "----- getting the port for $VM_NAME to SSH -----"
-  local PORT=$(get_vm_ssh_port $VM_NAME)
+  log "getting the VM identity file for $VM_NAME"
+  ID_FILE=$(get_vm_identity_file $VM_NAME)
+  log "getting the port for $VM_NAME to SSH"
+  PORT=$(get_vm_ssh_port $VM_NAME)
 
-  log "----- getting cilium logs from $VM_NAME -----"
+  log "getting cilium logs from $VM_NAME"
   vagrant ssh $VM_NAME -c 'sudo -E bash -c "journalctl --no-pager -u cilium > /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files/cilium-logs && chmod a+r /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files/cilium-logs"'
 
-  log "----- listing all logs that will be gathered from $VM_NAME -----"
+  log "listing all logs that will be gathered from $VM_NAME"
   vagrant ssh $VM_NAME -c 'ls -altr /home/vagrant/go/src/github.com/cilium/cilium/tests/cilium-files'
 
-  log "----- copying logs from $VM_NAME onto VM host for accessibility after VM is destroyed -----"
+  log "copying logs from $VM_NAME onto VM host for accessibility after VM is destroyed"
   scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r -P ${PORT} -i ${ID_FILE} vagrant@127.0.0.1:/home/vagrant/go/src/github.com/cilium/cilium/${FILES_DIR} ${WORKSPACE}/cilium-files-${VM_NAME}
   restore_x_flag $save
 }
@@ -733,11 +743,11 @@ function get_k8s_vm_name {
 }
 
 function get_cilium_master_vm_name {
-  if [ ! -z ${K8STAG} ] ; then
+  if [ ! -z "${K8STAG}" ] ; then
     local K8S_TAG="${K8STAG:-k8s}"
   fi
 
-  if [ ! -z ${BUILD_NUMBER} ] ; then
+  if [ ! -z "${BUILD_NUMBER}" ] ; then
     local BUILD_ID_NAME="-build-${BUILD_ID}"
   fi
 
@@ -749,11 +759,12 @@ function check_vm_running {
   set +x
   check_num_params "$#" "1"
   local VM=$1
-  log "----- getting status of VM $VM -----"
-  vagrant status $VM
-  log "----- done getting status of VM $VM -----"
+  log "getting status of VM ${VM}"
+  vagrant status ${VM}
+  log "done getting status of VM ${VM}"
 
-  local VM_STATUS=`vagrant status $VM | grep $VM | awk '{print $2}'`
+  local VM_STATUS
+  VM_STATUS=`vagrant status ${VM} | grep ${VM} | awk '{print $2}'`
   if [[ "${VM_STATUS}" != "running" ]]; then
     log "$VM is not in \"running\" state; exiting"
   else
@@ -767,6 +778,8 @@ function wait_for_agent_socket {
   set +x
   check_num_params "$#" "1"
   MAX_WAIT=$1
+
+  log "waiting at most ${MAX_WAIT} iterations for cilium agent socket"
   local i=0
 
   while [ "$i" -lt "$MAX_WAIT" ]; do
@@ -787,9 +800,11 @@ function wait_for_kill {
   check_num_params "$#" "2"
   TARGET_PID=$1
   MAX_WAIT=$2
+  
+  log "waiting at most ${MAX_WAIT} iterations for PID ${TARGET_PID} to be killed"
   local i=0
 
-  while [ $i -lt $MAX_WAIT ]; do
+  while [ $i -lt "${MAX_WAIT}" ]; do
     micro_sleep
     i=$[$i+1]
     if ! ps -p $TARGET_PID > /dev/null; then
@@ -817,7 +832,7 @@ function diff_timeout() {
 
   until [[ "$found" -eq "1" ]]; do
     if [[ $((iter++)) -gt $((30)) ]]; then
-      log "Timeout"
+      log "Timeout waiting for diff to be empty"
       restore_x_flag $save
       abort "$DIFF"
     fi
@@ -863,7 +878,9 @@ function wait_for_desired_state {
   local ERROR_OUTPUT="$5"
   local sleep_time=1
   local iter=0
-  local found=$(eval "$CMD")
+  local found
+  found=$(eval "$CMD")
+  log "waiting for at most ${MAX_MINS} minutes for command ${CMD} to succeed"
   log "found: $found"
 
   while [[ "$found" -ne "$NUM_DESIRED" ]]; do
@@ -873,6 +890,7 @@ function wait_for_desired_state {
       restore_x_flag $save
       exit 1
     else
+      log "desired state not realized; will sleep and try again"
       eval "$INFO_CMD"
       echo -n " [$found/$NUM_DESIRED]"
       sleep $sleep_time
@@ -880,6 +898,7 @@ function wait_for_desired_state {
     found=$(eval "${CMD}")
     log "found: $found"
   done
+  log "desired state realized for command ${CMD}"
   eval "${INFO_CMD}"
   restore_x_flag $save
 }
@@ -905,7 +924,8 @@ function wait_specified_time_test {
 
   local sleep_time=1
   local iter=0
-  echo "waiting for up to $MAX_MINS for $CMD to succeed"
+ 
+  log "waiting for at most ${MAX_MINS} minutes for command ${CMD} to succeed"
   while [[ "${iter}" -lt $((${MAX_MINS}*60/$sleep_time)) ]]; do
     echo "${iter} < $((${MAX_MINS}*60/$sleep_time)) "
     if eval "${CMD}" ; then
@@ -917,15 +937,17 @@ function wait_specified_time_test {
     iter=$((iter+1))
   done
   if [[ "${iter}" -ge $((${MAX_MINS}*60/$sleep_time)) ]]; then
-    log "Timeout ${MAX_MINS} minutes exceeded for command \"$CMD\", Exiting with failure."
+    log "Timeout ${MAX_MINS} minutes exceeded for command \"$CMD\""
+    log "Exiting with failure."
     restore_x_flag $save
     exit 1
   fi
+  log "${CMD} succeeded"
   restore_x_flag $save
 }
 
 function create_cilium_docker_network {
-  echo "------ creating Docker network of type Cilium ------"
+  log "creating Docker network of type Cilium"
   docker network inspect $TEST_NET 2> /dev/null || {
     docker network create --ipv6 --subnet ::1/112 --ipam-driver cilium --driver cilium $TEST_NET
   }
