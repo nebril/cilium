@@ -275,6 +275,7 @@ func (m *Map) migrate(fd int) (bool, error) {
 }
 
 func (m *Map) OpenOrCreate() (bool, error) {
+	log.Debugf("locking map %s", m.name)
 	m.lock.Lock()
 	log.Debugf("opening and / or creating map %s", m.name)
 	defer m.lock.Unlock()

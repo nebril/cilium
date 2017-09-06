@@ -122,6 +122,7 @@ func UpdateService(key ServiceKey, value ServiceValue) error {
 		return fmt.Errorf("invalid RevNat ID (0) in the Service Value")
 	}
 	log.Debugf("key.GetBackend(): %d, value.RevNatKey().GetKey(): %d", key.GetBackend(), value.RevNatKey().GetKey())
+	log.Debugf("key.Map(): %v", key.Map())
 	if _, err := key.Map().OpenOrCreate(); err != nil {
 		return err
 	}
