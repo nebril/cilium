@@ -276,6 +276,7 @@ func (m *Map) migrate(fd int) (bool, error) {
 
 func (m *Map) OpenOrCreate() (bool, error) {
 	m.lock.Lock()
+	log.Debugf("opening and / or creating map %s", m.name)
 	defer m.lock.Unlock()
 
 	if m.fd != 0 {
@@ -289,6 +290,7 @@ func (m *Map) OpenOrCreate() (bool, error) {
 	// If the map represents non-persistent data, always remove the map
 	// before opening or creating.
 	if m.NonPersistent {
+		log.Debugf("map %s is non-persistent; removing it", m.name)
 		os.Remove(m.path)
 	}
 
@@ -301,6 +303,7 @@ reopen:
 	// Only persistent maps need to be migrated, non-persistent maps will
 	// have been deleted above before opening.
 	if !m.NonPersistent {
+		log.Debugf("map %s is persistent, migrating it")
 		if retry, err := m.migrate(fd); err != nil {
 			if isNew {
 				os.Remove(m.path)
@@ -450,6 +453,7 @@ func (m *Map) Update(key MapKey, value MapValue) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	log.Debugf("updating map %s with key %s and value %s", m.name, key, value)
 	if err := m.Open(); err != nil {
 		return err
 	}

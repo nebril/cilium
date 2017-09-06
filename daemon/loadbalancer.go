@@ -32,7 +32,7 @@ import (
 // RevNAT value (feCilium.L3n4Addr) to the lb's RevNAT map for the given feCilium.ID.
 func (d *Daemon) addSVC2BPFMap(feCilium types.L3n4AddrID, feBPF lbmap.ServiceKey,
 	besBPF []lbmap.ServiceValue, addRevNAT bool) error {
-	log.Debugf("adding service %d to BPF maps", feCilium.String())
+	log.Debugf("adding service %s to BPF maps", feCilium.String())
 
 	// Try to delete service before adding it and ignore errors as it might not exist.
 	err := d.svcDeleteByFrontendLocked(&feCilium.L3n4Addr)
@@ -524,7 +524,7 @@ func (d *Daemon) SyncLBMap() error {
 		}
 
 		if svc.FE.ID != kvL3n4AddrID.ID {
-			log.Infof("Service ID %d read from BPF was out of sync with KVStore, got new ID %d", svc.FE.ID, kvL3n4AddrID.ID)
+			log.Infof("service ID %d read from BPF map was out of sync with KVStore, got new ID %d", svc.FE.ID, kvL3n4AddrID.ID)
 			oldID := svc.FE.ID
 			svc.FE.ID = kvL3n4AddrID.ID
 			if err := addSVC2BPFMap(oldID, *svc); err != nil {
