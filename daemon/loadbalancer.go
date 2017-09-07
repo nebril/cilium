@@ -448,6 +448,7 @@ func (d *Daemon) SyncLBMap() error {
 	defer d.loadBalancer.BPFMapMU.Unlock()
 
 	newSVCMap := types.SVCMap{}
+	newSVCList := []*types.LBSVC{}
 	newSVCMapID := types.SVCMapID{}
 	newRevNATMap := types.RevNATMap{}
 	failedSyncSVC := []types.LBSVC{}
@@ -508,43 +509,7 @@ func (d *Daemon) SyncLBMap() error {
 		}
 
 		svc := newSVCMap.AddFEnBE(fe, be, svcKey.GetBackend())
-
-		feSha := fe.SHA256Sum()
-
-		// Let's check if the services read from the lbmap have the same ID set in the
-		// KVStore.
-		log.Debugf("iterating over services read from BPF LB Map and seeing if they have the same ID set in the KV store")
-		kvL3n4AddrID, err := PutL3n4Addr(svc.FE.L3n4Addr, 0)
-		if err != nil {
-			log.Errorf("Unable to retrieve service ID of: %s from KVStore: %s."+
-				" This entry will be removed from the bpf's LB map.", svc.FE.L3n4Addr.String(), err)
-			failedSyncSVC = append(failedSyncSVC, *svc)
-			delete(newSVCMap, feSha)
-			return
-		}
-
-		if svc.FE.ID != kvL3n4AddrID.ID {
-			log.Infof("service ID %d read from BPF map was out of sync with KVStore, got new ID %d", svc.FE.ID, kvL3n4AddrID.ID)
-			oldID := svc.FE.ID
-			svc.FE.ID = kvL3n4AddrID.ID
-			if err := addSVC2BPFMap(oldID, *svc); err != nil {
-				log.Errorf("%s", err)
-
-				failedSyncSVC = append(failedSyncSVC, *svc)
-				delete(newSVCMap, feSha)
-
-				revNAT, ok := newRevNATMap[svc.FE.ID]
-				if ok {
-					// Revert the old revNAT
-					newRevNATMap[oldID] = revNAT
-					failedSyncRevNAT[svc.FE.ID] = revNAT
-					delete(newRevNATMap, svc.FE.ID)
-				}
-				return
-			}
-		}
-		newSVCMap[feSha] = *svc
-		newSVCMapID[svc.FE.ID] = svc
+		newSVCList = append(newSVCList, svc)
 	}
 
 	parseRevNATEntries := func(key bpf.MapKey, value bpf.MapValue) {
@@ -581,6 +546,52 @@ func (d *Daemon) SyncLBMap() error {
 	lbmap.RevNat6Map.Dump(lbmap.RevNat6DumpParser, parseRevNATEntries)
 	if err != nil {
 		log.Warningf("error dumping RevNat6Map: %s", err)
+	}
+
+	// Need to do this outside of parseSVCEntries to avoid deadlock, because we
+	// are modifying the BPF maps, and calling Dump on a Map RLocks the maps.
+	for _, svc := range newSVCList {
+		// Check if the services read from the lbmap have the same ID set in the
+		// KVStore.
+		log.Debugf("iterating over services read from BPF LB Map and seeing if they have the same ID set in the KV store")
+		kvL3n4AddrID, err := PutL3n4Addr(svc.FE.L3n4Addr, 0)
+		if err != nil {
+			log.Errorf("Unable to retrieve service ID of: %s from KVStore: %s."+
+				" This entry will be removed from the bpf's LB map.", svc.FE.L3n4Addr.String(), err)
+			failedSyncSVC = append(failedSyncSVC, *svc)
+			delete(newSVCMap, svc.Sha256)
+			// Don't update the maps of services since the service failed to
+			// sync.
+			continue
+		}
+
+		// Mismatch detected between BPF Maps and KVstore, so we need to update
+		// the ID in the BPF Maps to reflect the ID of the KVstore.
+		if svc.FE.ID != kvL3n4AddrID.ID {
+			log.Infof("service ID %d read from BPF map was out of sync with KVStore, got new ID %d", svc.FE.ID, kvL3n4AddrID.ID)
+			oldID := svc.FE.ID
+			svc.FE.ID = kvL3n4AddrID.ID
+			// If we cannot add the service to the BPF maps, update the list of
+			// services that failed to sync.
+			if err := addSVC2BPFMap(oldID, *svc); err != nil {
+				log.Errorf("%s", err)
+
+				failedSyncSVC = append(failedSyncSVC, *svc)
+				delete(newSVCMap, svc.Sha256)
+
+				revNAT, ok := newRevNATMap[svc.FE.ID]
+				if ok {
+					// Revert the old revNAT
+					newRevNATMap[oldID] = revNAT
+					failedSyncRevNAT[svc.FE.ID] = revNAT
+					delete(newRevNATMap, svc.FE.ID)
+				}
+				// Don't update the maps of services since the service failed to
+				// sync.
+				continue
+			}
+		}
+		newSVCMapID[svc.FE.ID] = svc
 	}
 
 	// Clean services and rev nats from BPF maps that failed to be restored.
