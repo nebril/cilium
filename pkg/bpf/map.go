@@ -275,9 +275,9 @@ func (m *Map) migrate(fd int) (bool, error) {
 }
 
 func (m *Map) OpenOrCreate() (bool, error) {
-	log.Debugf("locking map %s", m.name)
+	log.Debugf("OpenOrCreate: locking map %s", m.name)
 	m.lock.Lock()
-	defer log.Debugf("map %s unlocked", m.name)
+	defer log.Debugf("OpenOrCreate map %s unlocked", m.name)
 	log.Debugf("opening and / or creating map %s", m.name)
 	defer m.lock.Unlock()
 
@@ -343,7 +343,9 @@ func (m *Map) Open() error {
 }
 
 func (m *Map) Close() error {
+	log.Debugf("Close: locking map %s", m.name)
 	m.lock.Lock()
+	defer log.Debugf("Close map %s unlocked", m.name)
 	defer m.lock.Unlock()
 
 	if m.fd != 0 {
@@ -358,7 +360,9 @@ type DumpParser func(key []byte, value []byte) (MapKey, MapValue, error)
 type DumpCallback func(key MapKey, value MapValue)
 
 func (m *Map) Dump(parser DumpParser, cb DumpCallback) error {
+	log.Debugf("Dump: RLocking map %s", m.name)
 	m.lock.RLock()
+	defer log.Debugf("Dump: map %s RUnlocked", m.name)
 	defer m.lock.RUnlock()
 
 	key := make([]byte, m.KeySize)
@@ -435,7 +439,9 @@ func (m *Map) containsEntries() (bool, error) {
 }
 
 func (m *Map) Lookup(key MapKey) (MapValue, error) {
+	log.Debugf("Lookup: RLocking map %s", m.name)
 	m.lock.RLock()
+	defer log.Debugf("Lookup: map %s RUnlocked", m.name)
 	defer m.lock.RUnlock()
 
 	value := key.NewValue()
@@ -464,7 +470,9 @@ func (m *Map) Update(key MapKey, value MapValue) error {
 }
 
 func (m *Map) Delete(key MapKey) error {
+	log.Debugf("Delete: Locking map %s", m.name)
 	m.lock.Lock()
+	defer log.Debugf("Delete: map %s unlocked", m.name)
 	defer m.lock.Unlock()
 
 	if err := m.Open(); err != nil {
@@ -478,7 +486,9 @@ func (m *Map) Delete(key MapKey) error {
 // entries. Note that if entries are added while the taversal is in progress,
 // such entries may survive the deletion process.
 func (m *Map) DeleteAll() error {
+	log.Debugf("DeleteAll: Locking map %s", m.name)
 	m.lock.Lock()
+	defer log.Debugf("DeleteAll: map %s unlocked", m.name)
 	defer m.lock.Unlock()
 
 	key := make([]byte, m.KeySize)
