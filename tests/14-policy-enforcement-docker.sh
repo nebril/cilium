@@ -76,7 +76,7 @@ function check_endpoints_policy_disabled {
     cilium endpoint list
     abort "Policy Enforcement  should be set to 'Disabled' since policy enforcement was set to never be enabled"
   fi
-  log  "${NUM_EPS} endpoints have policy enforcement disabled; continuing"
+  log "${NUM_EPS} endpoints have policy enforcement disabled; continuing"
 }
 
 function start_containers {
