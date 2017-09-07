@@ -247,6 +247,10 @@ skip_service_lookup:
 		union macaddr host_mac = HOST_IFINDEX_MAC;
 		int ret;
 
+		// Capture the packet before the packet's destination address and port
+		// are rewritten.
+		send_trace_notify(skb, TRACE_TO_PROXY, SECLABEL, 0, 0, HOST_IFINDEX);
+
 		ret = ipv6_redirect_to_host_port(skb, &csum_off, l4_off,
 						 ct_state.proxy_port, tuple->dport,
 						 orig_dip, tuple, &host_ip, SECLABEL);
@@ -266,7 +270,6 @@ skip_service_lookup:
 		if (ret != TC_ACT_OK)
 			return ret;
 
-		send_trace_notify(skb, TRACE_TO_PROXY, SECLABEL, 0, 0, HOST_IFINDEX);
 		return redirect(HOST_IFINDEX, 0);
 	}
 
@@ -569,6 +572,10 @@ skip_service_lookup:
 		union macaddr host_mac = HOST_IFINDEX_MAC;
 		int ret;
 
+		// Capture the packet before the packet's destination address and port
+		// are rewritten.
+		send_trace_notify(skb, TRACE_TO_PROXY, SECLABEL, 0, 0, HOST_IFINDEX);
+
 		ret = ipv4_redirect_to_host_port(skb, &csum_off, l4_off,
 						 ct_state.proxy_port, tuple.dport,
 						 orig_dip, &tuple, SECLABEL);
@@ -588,7 +595,6 @@ skip_service_lookup:
 		if (ret != TC_ACT_OK)
 			return ret;
 
-		send_trace_notify(skb, TRACE_TO_PROXY, SECLABEL, 0, 0, HOST_IFINDEX);
 		return redirect(HOST_IFINDEX, 0);
 	}
 
