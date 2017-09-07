@@ -20,6 +20,8 @@ TEST_NAME="01-guestbook-test"
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
+log "running test: $TEST_NAME"
+
 guestbook_dir="${dir}/deployments/guestbook"
 
 function cleanup {
@@ -52,6 +54,7 @@ function finish_test {
   cleanup 
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "2" ${LOGS_DIR}
+  log "finished running test: $TEST_NAME"
 }
 
 

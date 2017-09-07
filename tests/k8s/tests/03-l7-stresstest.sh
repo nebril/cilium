@@ -27,9 +27,12 @@ TEST_NAME="03-l7-stresstest"
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
+log "running test: $TEST_NAME"
+
 function finish_test {
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "2" ${LOGS_DIR}
+  log "finished running test: $TEST_NAME"
 }
 
 trap finish_test exit

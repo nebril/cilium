@@ -22,6 +22,8 @@
 #  - Reviews-v1 will not be able to reach Ratings endpoint `/`.
 #
 
+set -e
+
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"
 # dir might have been overwritten by helpers.bash
@@ -36,9 +38,13 @@ TEST_NAME="02-cnp-specs"
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
+log "running test: $TEST_NAME"
+
+
 function finish_test {
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "2" ${LOGS_DIR}
+  log "finished running test: $TEST_NAME"
 }
 
 trap finish_test exit

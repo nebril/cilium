@@ -9,12 +9,16 @@ source "${dir}/../cluster/env.bash"
 
 set -e
 
+
+
 NAMESPACE="kube-system"
 GOPATH="/home/vagrant/go"
 DENIED="Result: DENIED"
 ALLOWED="Result: ALLOWED"
 TEST_NAME="001-policy-enforcement"
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+
+log "running test: $TEST_NAME"
 
 # string present in labels for all real workloads being tested
 POD_FILTER=k8s:id=app
@@ -49,6 +53,7 @@ function finish_test {
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "1" ${LOGS_DIR}
   cleanup
+  log "finished running test: $TEST_NAME"
 }
 
 #######################################

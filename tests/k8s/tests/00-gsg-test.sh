@@ -20,6 +20,8 @@ ALLOWED="Result: ALLOWED"
 TEST_NAME="00-gsg-test"
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 
+log "running test: $TEST_NAME"
+
 MINIKUBE="${dir}/../../../examples/minikube"
 K8SDIR="${dir}/../../../examples/kubernetes"
 GSGDIR="${dir}/deployments/gsg"
@@ -35,6 +37,7 @@ function finish_test {
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "1" ${LOGS_DIR}
   cleanup
+  log "finished running test: $TEST_NAME"
 }
 
 trap finish_test exit
