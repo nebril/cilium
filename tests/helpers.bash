@@ -244,13 +244,13 @@ function wait_for_cilium_ep_gen {
     log "found: $found"
 
     while [[ "$found" -ne "$NUM_DESIRED" ]]; do
-      echo "$found endpoints are still regenerating; want $NUM_DESIRED"
+      log "$found endpoints are still regenerating; want $NUM_DESIRED"
       if [[ $((iter++)) -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
         echo ""
         log "${ERROR_OUTPUT}"
         exit 1
       else
-        echo "still within time limit for waiting for endpoints to be in 'ready' state; sleeping and checking again"
+        log "still within time limit for waiting for endpoints to be in 'ready' state; sleeping and checking again"
         eval "$INFO_CMD"
         echo -n " [$found/$NUM_DESIRED]"
         # If command fails and iter is non-zero, reset iter back to zero.
@@ -613,7 +613,7 @@ function wait_for_service_endpoints_ready {
 
   log "Waiting for ${name} service endpoints to be ready"
   wait_specified_time_test "test \"\$(kubectl get endpoints -n ${namespace} ${name} | grep -c \":${port}\")\" -eq \"1\"" "5"
-  echo "Done waiting for ${name} service endpoints to be ready"
+  log "Done waiting for ${name} service endpoints to be ready"
   kubectl get endpoints -n ${namespace} ${name}
   restore_x_flag $save
 }
@@ -628,14 +628,14 @@ function wait_for_service_ready_cilium_pod {
   # TODO: only works for one backend right now.
   local be_port="${4}"
 
-  echo "Waiting for Cilium pod ${pod} to have services ready with frontend port: ${fe_port} and backend port: ${be_port}"
+  log "Waiting for Cilium pod ${pod} to have services ready with frontend port: ${fe_port} and backend port: ${be_port}"
   
   wait_specified_time_test "test \"\$(kubectl -n ${namespace} exec ${pod} -- cilium service list | awk '{ print \$2 }' | grep -c \":${fe_port}\")\" -ge \"1\"" "5"
   wait_specified_time_test "test \"\$(kubectl -n ${namespace} exec ${pod} -- cilium service list | awk '{ print \$5 }' | grep -c \":${be_port}\")\" -ge \"1\"" "5"
   
-  echo "Done waiting for Cilium pod ${pod} to have services ready with frontend port: ${fe_port} and backend port: ${be_port}"
+  log "Done waiting for Cilium pod ${pod} to have services ready with frontend port: ${fe_port} and backend port: ${be_port}"
   
-  echo "Listing all services:"
+  log "Listing all services:"
   kubectl -n ${namespace} exec ${pod} -- cilium service list
   restore_x_flag $save
 }
@@ -657,7 +657,7 @@ function k8s_apply_policy {
     currentRevison[$pod]=$rev
   done
 
-  echo "Current policy revisions:"
+  log "Current policy revisions:"
   for i in "${!currentRevison[@]}"
   do
     echo "  $i: ${currentRevison[$i]}"
@@ -667,7 +667,7 @@ function k8s_apply_policy {
 
   for pod in $pods; do
     local nextRev=$(expr ${currentRevison[$pod]} + 1)
-    echo "Waiting for agent $pod endpoints to get to revision $nextRev"
+    log "Waiting for agent $pod endpoints to get to revision $nextRev"
     timeout 180s kubectl -n $namespace exec $pod -- cilium policy wait $nextRev
   done
 
@@ -927,12 +927,12 @@ function wait_specified_time_test {
  
   log "waiting for at most ${MAX_MINS} minutes for command ${CMD} to succeed"
   while [[ "${iter}" -lt $((${MAX_MINS}*60/$sleep_time)) ]]; do
-    echo "${iter} < $((${MAX_MINS}*60/$sleep_time)) "
+    log "${iter} < $((${MAX_MINS}*60/$sleep_time)) "
     if eval "${CMD}" ; then
-      echo "${CMD} succeeded"
+      log "${CMD} succeeded"
       break
     fi
-    echo "${CMD} did not succeed; sleeping and testing the command again"
+    log "${CMD} did not succeed; sleeping and testing the command again"
     sleep ${sleep_time}
     iter=$((iter+1))
   done
