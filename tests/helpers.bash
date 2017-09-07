@@ -591,7 +591,7 @@ function k8s_count_all_cluster_cilium_eps {
     total=$(( $total + $n_eps ))
   done
 
-  log "$total"
+  echo "$total"
   restore_x_flag $save
 }
 
