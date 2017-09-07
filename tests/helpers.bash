@@ -209,6 +209,7 @@ function wait_for_cilium_ep_gen {
   local NAMESPACE
   local POD
   local CMD
+  local INFO_CMD
 
   if [[ "$MODE" == "k8s" ]]; then
     # Only care about provided params if mode is K8s.
@@ -216,12 +217,13 @@ function wait_for_cilium_ep_gen {
     NAMESPACE=$2
     POD=$3
     CMD="kubectl exec -n ${NAMESPACE} ${POD} -- cilium endpoint list | grep -c regenerating"
+    INFO_CMD="kubectl exec -n ${NAMESPACE} ${POD} -- cilium endpoint list"
   else
     CMD="cilium endpoint list | grep -c regenerating"
+    INFO_CMD="cilium endpoint list"
   fi
 
   local NUM_DESIRED="0"
-  local INFO_CMD="true"
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for endpoints to regenerate"
  
@@ -251,6 +253,7 @@ function wait_for_cilium_ep_gen {
         exit 1
       else
         log "still within time limit for waiting for endpoints to be in 'ready' state; sleeping and checking again"
+        log "output of ${INFO_CMD}"
         eval "$INFO_CMD"
         echo -n " [$found/$NUM_DESIRED]"
         # If command fails and iter is non-zero, reset iter back to zero.
