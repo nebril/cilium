@@ -13,7 +13,7 @@
 # stress test is completed, it will install a policy and run the stress test
 # one more time.
 
-set -e
+set -ex
 
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"

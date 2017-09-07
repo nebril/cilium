@@ -24,6 +24,8 @@
 
 set -e
 
+exit 0
+
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"
 # dir might have been overwritten by helpers.bash
