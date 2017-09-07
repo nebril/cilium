@@ -73,6 +73,9 @@ type Config struct {
 	// values: { auto | always | policy }
 	AllowLocalhost string
 
+	// AutoV6L3Routes automatically adds L3 direct routing when using direct mode (-d)
+	AutoV6L3Routes bool
+
 	// alwaysAllowLocalhost is set based on the value of AllowLocalhost and
 	// is either set to true when localhost can always reach local
 	// endpoints or false when policy should be evaluated
