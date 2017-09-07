@@ -11,7 +11,7 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source "${dir}/../cluster/env.bash"
 
-set -ex
+set -e
 
 NAMESPACE="kube-system"
 GOPATH="/home/vagrant/go"
