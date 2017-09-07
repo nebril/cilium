@@ -42,21 +42,27 @@ l7_stresstest_dir="${dir}/deployments/l7-stresstest"
 # Set frontend on k8s-1 to force inter-node communication
 node_selector="k8s-1"
 
+log "setting node-selector in ${l7_stresstest_dir}/1-frontend.json so frontend runs on $node_selector"
 sed "s/\$kube_node_selector/${node_selector}/" \
     "${l7_stresstest_dir}/1-frontend.json.sed" > "${l7_stresstest_dir}/1-frontend.json"
 
 # Set backend on k8s-2 to force inter-node communication
 node_selector="k8s-2"
 
+log "setting node-selector in ${l7_stresstest_dir}/2-backend-server.json so backend runs on $node_selector"
 sed "s/\$kube_node_selector/${node_selector}/" \
     "${l7_stresstest_dir}/2-backend-server.json.sed" > "${l7_stresstest_dir}/2-backend-server.json"
 
 # Create the namespaces before creating the pods
+log "creating K8s namespace qa"
 kubectl create namespace qa
+log "creating K8s namespace development"
 kubectl create namespace development
 
+log "creating all resources in ${l7_stresstest_dir}"
 kubectl create -f "${l7_stresstest_dir}"
 
+log "waiting for all resources to be ready"
 wait_for_running_pod frontend qa
 wait_for_running_pod backend development
 
@@ -66,8 +72,11 @@ wait_for_cilium_ep_gen k8s ${NAMESPACE} ${LOCAL_CILIUM_POD}
 
 # frontend doesn't have any endpoints
 
+log "getting information about pods in qa namespace"
 kubectl get pods -n qa -o wide
+log "getting information about pods in development namespace"
 kubectl get pods -n development -o wide
+log "getting information about backend service in development namespace"
 kubectl describe svc -n development backend
 
 frontend_pod=$(kubectl get pods -n qa | grep frontend | awk '{print $1}')
@@ -75,7 +84,7 @@ backend_pod=$(kubectl get pods -n development | grep backend | awk '{print $1}')
 
 backend_svc_ip=$(kubectl get svc -n development | awk 'NR==2{print $2}')
 
-echo "Running tests WITHOUT Policy / Proxy loaded"
+log "Running tests WITHOUT Policy / Proxy loaded"
 
 code=$(kubectl exec -n qa -i ${frontend_pod} -- curl -s -o /dev/null -w "%{http_code}" http://${backend_svc_ip}:80/)
 
@@ -91,25 +100,20 @@ cilium_id=$(docker ps -aq --filter=name=cilium-agent)
 # TPR in k8s < 1.7.0
 if [[ "${k8s_version}" == 1.7.* ]]; then
     k8s_apply_policy kube-system create "${l7_stresstest_dir}/policies/cnp.yaml"
-
     docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=l7-stresstest 1>/dev/null
-
     if [ $? -ne 0 ]; then abort "l7-stresstest policy not in cilium" ; fi
 else
     k8s_apply_policy kube-system create "${l7_stresstest_dir}/policies/cnp-deprecated.yaml"
-
     docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=l7-stresstest-deprecated 1>/dev/null
-
     if [ $? -ne 0 ]; then abort "l7-stresstest-deprecated policy not in cilium" ; fi
 fi
 
-echo "Running tests WITH Policy / Proxy loaded"
-
-echo "Policy loaded in cilium"
+log "Running tests WITH Policy / Proxy loaded"
+log "Policy loaded in cilium"
 
 docker exec -i ${cilium_id} cilium policy get
 
-echo "===== Netstat ====="
+log "===== Netstat ====="
 
 netstat -ltn
 
@@ -128,11 +132,11 @@ kubectl exec -n qa -i ${frontend_pod} -- wrk -t20 -c1000 -d60 "http://${backend_
 #
 #kubectl exec -n qa -i ${frontend_pod} -- ab -r -n 1000000 -c 200 -s 60 -v 1 "http://${backend_svc_ip}:80/"
 
-echo "SUCCESS!"
+log "SUCCESS!"
 
 set +e
 
-echo "Not found policy is expected to happen"
+log "Not found policy is expected to happen"
 
 k8s_apply_policy $NAMESPACE delete "${l7_stresstest_dir}/"
 k8s_apply_policy $NAMESPACE delete "${l7_stresstest_dir}/policies"
@@ -144,11 +148,9 @@ kubectl delete namespace qa development
 # TPR in k8s < 1.7.0
 if [[ "${k8s_version}" == 1.7.* ]]; then
     docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=l7-stresstest 2>/dev/null
-
     if [ $? -eq 0 ]; then abort "l7-stresstest policy found in cilium; policy should have been deleted" ; fi
 else
     docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=l7-stresstest-deprecated 2>/dev/null
-
     if [ $? -eq 0 ]; then abort "l7-stresstest-deprecated policy found in cilium; policy should have been deleted" ; fi
 fi
 
