@@ -30,6 +30,7 @@ LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) |
 log "running test: $TEST_NAME"
 
 function finish_test {
+  log "running finish_test for $TEST_NAME"
   gather_files ${TEST_NAME} k8s-tests
   gather_k8s_logs "2" ${LOGS_DIR}
   log "finished running test: $TEST_NAME"

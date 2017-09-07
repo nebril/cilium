@@ -27,7 +27,7 @@ function log {
   set +x
   check_num_params "$#" "1"
   message=$1
-  echo "${FUNCNAME[ 1 ]}: ----- $message -----"
+  echo "----- ${FUNCNAME[ 1 ]}: $message -----"
   restore_x_flag $save
 }
 
@@ -254,14 +254,19 @@ function wait_for_cilium_ep_gen {
         eval "$INFO_CMD"
         echo -n " [$found/$NUM_DESIRED]"
         # If command fails and iter is non-zero, reset iter back to zero.
+        log "setting command counter to zero"
         check_cmd_iter=0
+        log "sleeping for $sleep_time"
         sleep $sleep_time
       fi
+      log "evaluating $CMD"
       found=$(eval "${CMD}")
       log "found: $found"
     done
     check_cmd_iter=$(expr $check_cmd_iter + 1)
+    log "incremented check_cmd_iter by 1: $check_cmd_iter"
     total_cmd_iter=$(expr $total_cmd_iter + 1)
+    log "incremented total command iteration counter by 1: $total_cmd_iter"
     sleep .25
   done
   restore_x_flag $save
