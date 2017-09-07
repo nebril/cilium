@@ -453,6 +453,7 @@ function gather_files {
   set +x
   local TEST_NAME=$1
   local TEST_SUITE=$2
+  log "gathering files for test $TEST_NAME in test suite $TEST_SUITE"
   local CILIUM_ROOT="src/github.com/cilium/cilium"
   if [ -z "${TEST_SUITE}" ]; then
     TEST_SUITE="runtime-tests"
@@ -487,6 +488,7 @@ function gather_files {
   sudo cp -r ${LIB}/* "${LIB_DIR}" || true
   find "${CILIUM_DIR}" -type d -exec sudo chmod 777 {} \;
   find "${CILIUM_DIR}" -exec sudo chmod a+r {} \;
+  log "finished gathering files for test $TEST_NAME in test suite $TEST_SUITE"
   restore_x_flag $save
 }
 
