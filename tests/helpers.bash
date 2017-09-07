@@ -203,7 +203,7 @@ function wait_for_kubectl_cilium_status {
 
 function wait_for_cilium_ep_gen {
   local save=$-
-  set +x
+  set -x
   local MODE=$1
 
   local NAMESPACE
@@ -214,6 +214,7 @@ function wait_for_cilium_ep_gen {
   if [[ "$MODE" == "k8s" ]]; then
     # Only care about provided params if mode is K8s.
     check_num_params "$#" "3"
+    log "mode is K8s"
     NAMESPACE=$2
     POD=$3
     CMD="kubectl exec -n ${NAMESPACE} ${POD} -- cilium endpoint list | grep -c regenerating"
