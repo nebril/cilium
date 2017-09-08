@@ -15,14 +15,21 @@ DENIED="Result: DENIED"
 ALLOWED="Result: ALLOWED"
 
 function cleanup {
+  log "beginning cleanup for ${TEST_NAME}"
+  log "deleting all policies"
   cilium policy delete --all 2> /dev/null || true
-  docker rm -f foo foo bar baz 2> /dev/null || true
-  docker network rm $TEST_NET > /dev/null 2>&1
+  log "removing containers foo, bar, and baz"
+  docker rm -f foo bar baz 2> /dev/null || true
+  log "removing Docker network $TEST_NET"
+  docker network rm $TEST_NET > /dev/null 2>&1 || true
+  log "finished cleanup for ${TEST_NAME}"
 }
 
 function finish_test {
+  log "beginning finishing up ${TEST_NAME}"
   gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
+  log "done finishing up ${TEST_NAME}"
 }
 
 trap finish_test EXIT
@@ -260,6 +267,7 @@ fi
 
 echo "------ verify max ingress nports is enforced ------"
 
+set +e
 cat <<EOF | cilium -D policy import -
 [{
 	"endpointSelector": {
@@ -453,6 +461,6 @@ EOF
 if [ "$?" -ne 1 ]; then
   abort "expected L4 policy with more than 40 ports to fail"
 fi
-
+set -e
 cilium policy delete --all
 

@@ -17,15 +17,22 @@ ID_SERVICE1="id.service1"
 ID_SERVICE2="id.service2"
 
 function cleanup {
+  log "beginning cleanup for ${TEST_NAME}"
+  log "deleting all policies"
   cilium policy delete --all 2> /dev/null || true
+  log "removing container ${HTTPD_CONTAINER_NAME}"
   docker rm -f ${HTTPD_CONTAINER_NAME}  2> /dev/null || true
+  log "removing Docker network ${TEST_NET}"
   docker network rm ${TEST_NET} 2> /dev/null || true
   monitor_stop
+  log "finished cleanup for ${TEST_NAME}"
 }
 
 function finish_test {
+  log "finishing up ${TEST_NAME}"
   gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
+  log "done finishing up ${TEST_NAME}"
 }
 
 trap finish_test EXIT
