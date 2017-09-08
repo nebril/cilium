@@ -204,6 +204,7 @@ function wait_for_kubectl_cilium_status {
 function wait_for_cilium_ep_gen {
   local save=$-
   set -x
+  set +e
   local MODE=$1
 
   local NAMESPACE
@@ -273,6 +274,7 @@ function wait_for_cilium_ep_gen {
     log "incremented total command iteration counter by 1: $total_cmd_iter"
     sleep .25
   done
+  set -e 
   restore_x_flag $save
 }
 
