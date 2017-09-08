@@ -23,6 +23,8 @@ for bin in "../cilium/cilium" \
 done
 
 function log {
+  local save=$-
+  set +u
   check_num_params "$#" "1"
   message=$1
   local stack
@@ -34,6 +36,7 @@ function log {
     fi
   done
   echo "----- ${stack}: $message"
+  restore_flag $save "u"
 }
 
 function get_filename_without_extension {
@@ -84,6 +87,7 @@ function logs_clear {
 }
 
 function abort {
+  set +e
   echo "------------------------------------------------------------------------"
   echo "                            Test Failed"
   echo "$*"
@@ -98,7 +102,6 @@ function abort {
   journalctl --no-pager --since "${LAST_LOG_DATE}" -u cilium
   echo ""
   echo "------------------------------------------------------------------------"
-
 
   exit 1
 }
