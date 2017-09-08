@@ -54,32 +54,47 @@ function redirect_debug_logs {
 }
 
 function monitor_start {
+  local save=$-
+  set +e
   log "starting monitor and dumping contents to $DUMP_FILE"
   cilium monitor -v $@ > $DUMP_FILE &
   MONITOR_PID=$!
+  restore_flag $save "e"
 }
 
 function monitor_resume {
+  local save=$-
+  set +e
   log "resuming monitor and dumping contents to $DUMP_FILE"
   cilium monitor -v $@ >> $DUMP_FILE &
   MONITOR_PID=$!
+  restore_flags $save "e"
 }
 
 function monitor_clear {
+  local save=$-
+  set +e
   log "clearing monitor"
   cp /dev/null $DUMP_FILE
   nstat > /dev/null
+  restore_flags $save "e"
 }
 
 function monitor_dump {
+  local save=$-
+  set +e
   nstat
   cat $DUMP_FILE
+  restore_flags $save "e"
 }
 
 function monitor_stop {
+  local save=$-
+  set +e
   if [ ! -z "$MONITOR_PID" ]; then
     kill $MONITOR_PID || true
   fi
+  restore_flags $save "e"
 }
 
 function logs_clear {
@@ -129,6 +144,8 @@ function check_num_params {
 }
 
 function wait_for_endpoints {
+  local save=$-
+  set +e
   check_num_params "$#" "1"
   local NUM_DESIRED="$1"
   local CMD="cilium endpoint list | grep -v \"not-ready\" | grep ready -c || true"
@@ -136,16 +153,22 @@ function wait_for_endpoints {
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for $NUM_DESIRED endpoints"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
+  restore_flags $save "e"
 }
 
 function k8s_num_ready {
+  local save=$-
+  set +e
   local NAMESPACE=$1
   local CILIUM_POD=$2
   local FILTER=$3
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list | grep $FILTER | grep -v 'not-ready' | grep -c 'ready' || true
+  restore_flags $save "e"
 }
 
 function wait_for_k8s_endpoints {
+  local save=$-
+  set +e
   check_num_params "$#" "4"
   local NAMESPACE=$1
   local CILIUM_POD=$2
@@ -166,6 +189,7 @@ function wait_for_k8s_endpoints {
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
       log "Timeout while waiting for $NUM endpoints"
+      restore_flags $save "e"
       exit 1
     else
       kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
@@ -177,6 +201,7 @@ function wait_for_k8s_endpoints {
   done
 
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
+  restore_flags $save "e"
 }
 
 function wait_for_cilium_status {
@@ -277,7 +302,8 @@ function wait_for_cilium_ep_gen {
 }
 
 function wait_for_daemon_set_not_ready {
-
+  local save=$-
+  set +e
   check_num_params "$#" "2"
 
   local namespace="${1}"
@@ -303,6 +329,7 @@ function wait_for_daemon_set_not_ready {
   done
 
   kubectl -n kube-system get pods -o wide
+  restore_flag $save "e"
 }
 
 function wait_for_policy_enforcement {
@@ -344,6 +371,8 @@ function wait_for_no_pods {
 }
 
 function wait_for_n_running_pods {
+  local save=$-
+  set +e
   check_num_params "$#" "1"
   local NPODS=$1
   log "Waiting for $NPODS running pods"
@@ -366,10 +395,13 @@ function wait_for_n_running_pods {
   done
 
   kubectl get pod -o wide
+  restore_flag $save "e"
 }
 
 # Wait for healthy k8s cluster on $1 nodes
 function wait_for_healthy_k8s_cluster {
+  local save=$-
+  set +e
   local NNODES=$1
   log "Waiting for healthy k8s cluster with $NNODES nodes"
 
@@ -405,9 +437,12 @@ function wait_for_healthy_k8s_cluster {
     fi
     found=$(kubectl get nodes | grep Ready -c)
   done
+  restore_flag $save "e"
 }
 
 function k8s_nodes_policy_status {
+  local save=$-
+  set +e
   local sleep_time=2
   local NNODES=$1
   local policy_ns=$2
@@ -428,6 +463,7 @@ function k8s_nodes_policy_status {
   done
 
   kubectl get ciliumnetworkpolicies -n "${policy_ns}" "${policy_name}" -o go-template --template='{{.status.nodes}}'
+  restore_flag $save "e"
 }
 
 function gather_files {
@@ -507,6 +543,8 @@ function print_k8s_cilium_logs {
 }
 
 function wait_for_daemon_set_ready {
+  local save=$-
+  set +e
   check_num_params "$#" "3"
 
   local namespace="${1}"
@@ -533,9 +571,12 @@ function wait_for_daemon_set_ready {
     found=$(kubectl get ds -n ${namespace} ${name} 2>&1 | awk 'NR==2{ print $4 }')
   done
   kubectl -n kube-system get pods -o wide
+  restore_flag $save "e"
 }
 
 function k8s_wait_for_cilium_status_ready {
+  local save=$-
+  set +e
   local pod
   check_num_params "$#" "1"
   local namespace=$1
@@ -544,9 +585,12 @@ function k8s_wait_for_cilium_status_ready {
   for pod in $pods; do
     wait_for_kubectl_cilium_status $namespace $pod
   done
+  restore_flag $save "e"
 }
 
 function k8s_count_all_cluster_cilium_eps {
+  local save=$-
+  set +e
   local total=0
   check_num_params "$#" "1"
   local pod
@@ -559,6 +603,7 @@ function k8s_count_all_cluster_cilium_eps {
   done
 
   echo "$total"
+  restore_flag $save "e"
 }
 
 function wait_for_api_server_ready {
@@ -755,7 +800,8 @@ function wait_for_kill {
 # executed consecutively with a 2 second pause until the output matches or the
 # timeout of 1 minute is reached.
 function diff_timeout() {
-
+  local save=$-
+  set +e
   local arg1="$1"
   local arg2="$2"
   local sleep_time=2
@@ -775,6 +821,7 @@ function diff_timeout() {
       sleep $sleep_time
     fi
   done
+  restore_flag $save "e"
 }
 
 #######################################
@@ -797,7 +844,9 @@ function diff_timeout() {
 #   None
 #######################################
 function wait_for_desired_state {
- 
+
+  local save=$-
+  set +e
   check_num_params "$#" "5"
   local NUM_DESIRED="$1"
   local CMD="$2"
@@ -827,6 +876,7 @@ function wait_for_desired_state {
   done
   log "desired state realized for command ${CMD}"
   eval "${INFO_CMD}"
+  restore_flag $save "e"
 }
 
 #######################################
@@ -843,6 +893,8 @@ function wait_for_desired_state {
 #   None
 #######################################
 function wait_specified_time_test {
+  local save=$-
+  set +e
   local CMD="$1"
   local MAX_MINS="$2"
 
@@ -866,6 +918,7 @@ function wait_specified_time_test {
     exit 1
   fi
   log "${CMD} succeeded"
+  restore_flag $save "e"
 }
 
 function create_cilium_docker_network {
