@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -ex
+
 DOC_DIR=../Documentation
 LINKCHECK_OUTPUT=$DOC_DIR/_build/linkcheck/output.txt
 

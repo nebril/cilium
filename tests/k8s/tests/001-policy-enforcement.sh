@@ -7,14 +7,16 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source "${dir}/../cluster/env.bash"
 
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
 set -ex
 
 NAMESPACE="kube-system"
 GOPATH="/home/vagrant/go"
 DENIED="Result: DENIED"
 ALLOWED="Result: ALLOWED"
-TEST_NAME="001-policy-enforcement"
-LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 
 log "running test: $TEST_NAME"
 

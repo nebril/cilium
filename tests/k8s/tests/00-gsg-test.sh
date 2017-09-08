@@ -15,7 +15,7 @@ TEST_NAME=$(get_filename_without_extension $0)
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 redirect_debug_logs ${LOGS_DIR}
 
-exit 0
+set -ex
 
 NAMESPACE="kube-system"
 GOPATH="/home/vagrant/go"
