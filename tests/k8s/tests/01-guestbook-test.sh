@@ -122,7 +122,7 @@ else
     docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=guestbook-web-deprecated 1>/dev/null
 
     if [ $? -ne 0 ]; then 
-      echo "Policies in Cilium: "
+      log "Policies in Cilium: "
       docker exec -i ${cilium_id} cilium policy get
       abort "guestbook-web-deprecated policy not in cilium"
     fi
@@ -131,7 +131,7 @@ fi
 docker exec -i ${cilium_id} cilium policy get io.cilium.k8s-policy-name=guestbook-redis-deprecated 1>/dev/null
 
 if [ $? -ne 0 ]; then
-  echo "Policies in Cilium: "
+  log "Policies in Cilium: "
   docker exec -i ${cilium_id} cilium policy get
   abort "guestbook-redis-deprecated policy not in cilium"
 fi
@@ -147,7 +147,7 @@ EOF' || {
     }
 
 if [[ -n "${lb}" ]]; then
-    echo "Testing ingress connectivity between VMs"
+    log "Testing ingress connectivity between VMs"
     kubectl create -f "${guestbook_dir}/ingress/"
     # FIXME finish this test case once we have LB up and running
 fi
@@ -178,6 +178,6 @@ if [[ "${k8s_version}" == 1.7.* ]]; then
         }
 fi
 
-echo "SUCCESS!"
+log "${TEST_NAME} succeeded"
 
 set +e

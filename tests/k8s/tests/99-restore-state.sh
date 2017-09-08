@@ -17,14 +17,17 @@ set -ex
 manangement_dir="${dir}/../cluster"
 
 # To run the restore functionality, we need to remove cilium ds and re-add it
+log "removing Cilium daemonset and readding it"
 ${manangement_dir}/cluster-manager.bash remove_cilium_ds
 
 wait_for_daemon_set_not_ready kube-system cilium
 
+log "deploying Cilium daemonset"
 ${manangement_dir}/cluster-manager.bash deploy_cilium
 
 k8s_wait_for_cilium_status_ready kube-system
 
+log "checking that endpoints are restored (number of endpoints is non-zero)"
 n_eps=$(k8s_count_all_cluster_cilium_eps kube-system)
 
 if [[ $n_eps -eq "0" ]]; then

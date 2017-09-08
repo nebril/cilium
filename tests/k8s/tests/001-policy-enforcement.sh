@@ -33,8 +33,8 @@ DISABLED_CMD="cilium endpoint list | grep \"${POD_FILTER}\" | awk '{print \$2}' 
 CILIUM_POD_1=$(kubectl -n ${NAMESPACE} get pods -l k8s-app=cilium -o wide | grep k8s-1 | awk '{ print $1 }')
 CILIUM_POD_2=$(kubectl -n ${NAMESPACE} get pods -l k8s-app=cilium -o wide | grep k8s-2 | awk '{ print $1 }')
 
-echo "CILIUM_POD_1: $CILIUM_POD_1"
-echo "CILIUM_POD_2: $CILIUM_POD_2"
+log "CILIUM_POD_1: $CILIUM_POD_1"
+log "CILIUM_POD_2: $CILIUM_POD_2"
 
 NUM_ENDPOINTS=4
 
@@ -105,7 +105,7 @@ function check_endpoints_policy_disabled {
     kubectl exec -n ${NAMESPACE} ${CILIUM_POD} -- cilium endpoint list | grep "${POD_FILTER}"
     abort "Policy Enforcement  should be set to 'Disabled' since policy enforcement was set to never be enabled"
   fi
-  echo  "---- ${NUM_EPS} endpoints have policy enforcement disabled; continuing"
+  log  "${NUM_EPS} endpoints have policy enforcement disabled; continuing"
 }
 
 function import_policy {
@@ -145,9 +145,9 @@ patch -p0 "${GSGDIR}/demo.yaml" "${GSGDIR}/minikube-gsg-l7-fix.diff"
 kubectl create -f ${GSGDIR}/demo.yaml
 wait_for_n_running_pods ${NUM_ENDPOINTS}
 
-echo " pods managed by Cilium Pod 1 ($CILIUM_POD_1)"
+log "pods managed by Cilium Pod 1 ($CILIUM_POD_1)"
 kubectl exec -n ${NAMESPACE} ${CILIUM_POD_1} -- cilium endpoint list
-echo " pods managed by Cilium Pod 2 ($CILIUM_POD_2)"
+log "pods managed by Cilium Pod 2 ($CILIUM_POD_2)"
 kubectl exec -n ${NAMESPACE} ${CILIUM_POD_2} -- cilium endpoint list
 
 # Test 1: default mode, K8s, Cilium launched.
