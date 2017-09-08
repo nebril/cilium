@@ -22,9 +22,7 @@
 #  - Reviews-v1 will not be able to reach Ratings endpoint `/`.
 #
 
-set -e
 
-exit 0
 
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"
@@ -33,11 +31,15 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source "${dir}/../cluster/env.bash"
 
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
+
 bookinfo_dir="${dir}/deployments/bookinfo"
 
 NAMESPACE="kube-system"
-TEST_NAME="02-cnp-specs"
-LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
 log "running test: $TEST_NAME"

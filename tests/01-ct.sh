@@ -1,8 +1,15 @@
 #!/bin/bash
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-set -e
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 function cleanup {
   docker rm -f server client httpd1 httpd2 curl curl2 2> /dev/null || true
@@ -10,12 +17,11 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 01-ct ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup 
 }
 
 function start_containers {
-  set +x
   log "starting containers"
   docker run -dt --net=$TEST_NET --name server -l id.server tgraf/netperf
   docker run -dt --net=$TEST_NET --name httpd1 -l id.httpd httpd
@@ -25,11 +31,9 @@ function start_containers {
   docker run -dt --net=$TEST_NET --name curl2  -l id.curl tgraf/netperf
   wait_for_endpoints 6
   echo "containers started and ready"
-  set -x
 }
 
 function get_container_metadata {
-  set +x
   CLIENT_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.GlobalIPv6Address }}' client)
   log "CLIENT_IP: $CLIENT_IP"
   CLIENT_IP4=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.IPAddress }}' client)
@@ -50,7 +54,6 @@ function get_container_metadata {
   log "HTTPD2_IP: $HTTPD2_IP"
   HTTPD2_IP4=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.IPAddress }}' httpd2)
   log "HTTPD2_IP4: $HTTPD2_IP4"
-  set -x
 } 
 
 trap finish_test EXIT
@@ -67,8 +70,6 @@ get_container_metadata
 
 log "endpoint list output:"
 cilium endpoint list
-
-set -x
 
 cat <<EOF | policy_import_and_wait -
 [{

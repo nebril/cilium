@@ -2,15 +2,22 @@
 
 export PATH=$PATH:/opt/cni/bin
 
-source "./helpers.bash"
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 server_id=""
 client_id=""
 
 logs_clear
 
-set -e
 
 function run_cni_container {
   LABELS=""
@@ -68,7 +75,7 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 05-cni ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
 }
 

@@ -23,12 +23,31 @@ for bin in "../cilium/cilium" \
 done
 
 function log {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   message=$1
-  echo "----- ${FUNCNAME[ 1 ]}: $message -----"
-  restore_x_flag $save
+  local stack
+  for (( i=${#FUNCNAME[@]}-1 ; i>0 ; i-- )) ; do
+    if [[ "${stack}" == "" ]]; then
+      stack="$(basename $0): ${FUNCNAME[i]}"
+    else
+      stack="$stack/${FUNCNAME[i]}"
+    fi
+  done
+  echo "----- ${stack}: $message"
+}
+
+function get_filename_without_extension {
+  check_num_params "$#" "1"
+  local file=$(basename $1)
+  local filename="${file%.*}"
+  echo $filename
+}
+# Note: if you call this, do not change the value of the debug flag - you will make the shell segmentation fault :) 
+function redirect_debug_logs {
+  check_num_params "$#" "1"
+  local LOGS_DIR=$1
+  mkdir -p ${LOGS_DIR}
+  exec {BASH_XTRACEFD}>>${LOGS_DIR}/debug.txt
 }
 
 function monitor_start {
@@ -44,12 +63,9 @@ function monitor_resume {
 }
 
 function monitor_clear {
-  local save=$-
-  set +x
   log "clearing monitor"
   cp /dev/null $DUMP_FILE
   nstat > /dev/null
-  restore_x_flag $save
 }
 
 function monitor_dump {
@@ -68,8 +84,6 @@ function logs_clear {
 }
 
 function abort {
-  local save=$-
-  set +x
   echo "------------------------------------------------------------------------"
   echo "                            Test Failed"
   echo "$*"
@@ -85,7 +99,6 @@ function abort {
   echo ""
   echo "------------------------------------------------------------------------"
 
-  restore_x_flag $save
 
   exit 1
 }
@@ -94,29 +107,25 @@ function micro_sleep {
   sleep 0.5
 }
 
-function restore_x_flag {
+function restore_flag {
+  check_num_params "$#" "2"
   local save=$1
-  if [[ $save =~ x ]]; then
-    set -x
+  local flag=$2
+  if [[ $save =~ $2 ]]; then
+    set -$2
   fi
 }
 
 function check_num_params {
-  local save=$-
-  set +x
   local NUM_PARAMS=$1
   local NUM_EXPECTED_PARAMS=$2
   if [ "$NUM_PARAMS" -ne "$NUM_EXPECTED_PARAMS" ]; then
     echo "${FUNCNAME[ 1 ]}: invalid number of parameters, expected $NUM_EXPECTED_PARAMS parameter(s)"
-    restore_x_flag $save
     exit 1
   fi
-  restore_x_flag $save
 }
 
 function wait_for_endpoints {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   local NUM_DESIRED="$1"
   local CMD="cilium endpoint list | grep -v \"not-ready\" | grep ready -c || true"
@@ -124,22 +133,16 @@ function wait_for_endpoints {
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for $NUM_DESIRED endpoints"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
-  restore_x_flag $save
 }
 
 function k8s_num_ready {
-  local save=$-
-  set +x
   local NAMESPACE=$1
   local CILIUM_POD=$2
   local FILTER=$3
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list | grep $FILTER | grep -v 'not-ready' | grep -c 'ready' || true
-  restore_x_flag $save
 }
 
 function wait_for_k8s_endpoints {
-  local save=$-
-  set +x
   check_num_params "$#" "4"
   local NAMESPACE=$1
   local CILIUM_POD=$2
@@ -171,24 +174,18 @@ function wait_for_k8s_endpoints {
   done
 
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
-  restore_x_flag $save
 }
 
 function wait_for_cilium_status {
-  local save=$-
-  set +x
   local NUM_DESIRED="1"
   local CMD="cilium status | grep 'Cilium:' | grep -c OK || true"
   local INFO_CMD="true"
   local MAX_MINS="1"
   local ERROR_OUTPUT="Timeout while waiting for Cilium to be ready"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
-  restore_x_flag $save
 }
 
 function wait_for_kubectl_cilium_status {
-  local save=$-
-  set +x
   check_num_params "$#" "2"
   namespace=$1
   pod=$2
@@ -198,12 +195,10 @@ function wait_for_kubectl_cilium_status {
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for Cilium to be ready"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
-  restore_x_flag $save
 }
 
 function wait_for_cilium_ep_gen {
   local save=$-
-  set -x
   set +e
   local MODE=$1
 
@@ -275,12 +270,10 @@ function wait_for_cilium_ep_gen {
     sleep .25
   done
   set -e 
-  restore_x_flag $save
+  restore_flag $save "e"
 }
 
 function wait_for_daemon_set_not_ready {
-  local save=$-
-  set +x
 
   check_num_params "$#" "2"
 
@@ -307,19 +300,15 @@ function wait_for_daemon_set_not_ready {
   done
 
   kubectl -n kube-system get pods -o wide
-  restore_x_flag $save
 }
 
 function wait_for_policy_enforcement {
-  local save=$-
-  set +x
   local NUM_DESIRED="0"
   local CMD="cilium endpoint list | grep -c Disabled"
   local INFO_CMD="true"
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for policy to be enabled for all endpoints"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
-  restore_x_flag $save
 }
 
 function count_lines_in_log {
@@ -327,45 +316,31 @@ function count_lines_in_log {
 }
 
 function wait_for_log_entries {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   local expected=$(($1 + $(count_lines_in_log)))
   wait_specified_time_test "test \"\$(count_lines_in_log)\" -ge \"$expected\"" "2"
-  restore_x_flag $save
 }
 
 function wait_for_docker_ipv6_addr {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   name=$1
   wait_specified_time_test "test \"\$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.GlobalIPv6Address }}' $name)\" != \"\"" "2"
-  restore_x_flag $save
 }
 
 function wait_for_running_pod {
-  local save=$-
-  set +x
   pod=$1
   namespace=${2:-default}
   log "Waiting for ${pod} pod to be Running..."
   wait_specified_time_test "test \"\$(kubectl get pods -n ${namespace} -o wide | grep ${pod} | grep -c Running)\" -eq \"1\"" "5"
-  restore_x_flag $save
 }
 
 function wait_for_no_pods {
-  local save=$-
-  set +x
   namespace=${1:-default}
   log "Waiting for no pods to be Running in namespace ${namespace}"
   wait_specified_time_test "test \"\$(kubectl get pods -n ${namespace} -o wide 2>&1 | grep -c 'No resources found')\" -eq \"1\"" "5"
-  restore_x_flag $save
 }
 
 function wait_for_n_running_pods {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   local NPODS=$1
   log "Waiting for $NPODS running pods"
@@ -388,13 +363,10 @@ function wait_for_n_running_pods {
   done
 
   kubectl get pod -o wide
-  restore_x_flag $save
 }
 
 # Wait for healthy k8s cluster on $1 nodes
 function wait_for_healthy_k8s_cluster {
-  local save=$-
-  set +x
   local NNODES=$1
   log "Waiting for healthy k8s cluster with $NNODES nodes"
 
@@ -430,12 +402,9 @@ function wait_for_healthy_k8s_cluster {
     fi
     found=$(kubectl get nodes | grep Ready -c)
   done
-  restore_x_flag $save
 }
 
 function k8s_nodes_policy_status {
-  local save=$-
-  set +x
   local sleep_time=2
   local NNODES=$1
   local policy_ns=$2
@@ -456,12 +425,9 @@ function k8s_nodes_policy_status {
   done
 
   kubectl get ciliumnetworkpolicies -n "${policy_ns}" "${policy_name}" -o go-template --template='{{.status.nodes}}'
-  restore_x_flag $save
 }
 
 function gather_files {
-  local save=$-
-  set +x
   local TEST_NAME=$1
   local TEST_SUITE=$2
   log "gathering files for test $TEST_NAME in test suite $TEST_SUITE"
@@ -500,12 +466,9 @@ function gather_files {
   find "${CILIUM_DIR}" -type d -exec sudo chmod 777 {} \;
   find "${CILIUM_DIR}" -exec sudo chmod a+r {} \;
   log "finished gathering files for test $TEST_NAME in test suite $TEST_SUITE"
-  restore_x_flag $save
 }
 
 function dump_cli_output {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   local DIR=$1
   cilium endpoint list > ${DIR}/endpoint_list.txt
@@ -529,24 +492,18 @@ function dump_cli_output {
   cilium bpf tunnel list > ${DIR}/bpf_tunnel_list.txt
   cilium policy get > ${DIR}/policy_get.txt
   cilium status > ${DIR}/status.txt
-  restore_x_flag $save
 }
 
 function print_k8s_cilium_logs {
-  local save=$-
-  set +x
   for pod in $(kubectl -n kube-system get pods -o wide| grep cilium | awk '{print $1}'); do
     kubectl -n kube-system logs $pod
     if [ $? -ne 0 ]; then
       kubectl -n kube-system logs $pod --previous
     fi
   done
-  restore_x_flag $save
 }
 
 function wait_for_daemon_set_ready {
-  local save=$-
-  set +x
   check_num_params "$#" "3"
 
   local namespace="${1}"
@@ -573,12 +530,9 @@ function wait_for_daemon_set_ready {
     found=$(kubectl get ds -n ${namespace} ${name} 2>&1 | awk 'NR==2{ print $4 }')
   done
   kubectl -n kube-system get pods -o wide
-  restore_x_flag $save
 }
 
 function k8s_wait_for_cilium_status_ready {
-  local save=$-
-  set +x
   local pod
   check_num_params "$#" "1"
   local namespace=$1
@@ -587,12 +541,9 @@ function k8s_wait_for_cilium_status_ready {
   for pod in $pods; do
     wait_for_kubectl_cilium_status $namespace $pod
   done
-  restore_x_flag $save
 }
 
 function k8s_count_all_cluster_cilium_eps {
-  local save=$-
-  set +x
   local total=0
   check_num_params "$#" "1"
   local pod
@@ -605,20 +556,14 @@ function k8s_count_all_cluster_cilium_eps {
   done
 
   echo "$total"
-  restore_x_flag $save
 }
 
 function wait_for_api_server_ready {
-  local save=$-
-  set +x
   log "Waiting for kube-apiserver to spin up"
   wait_specified_time_test "test \$(kubectl get cs)" "10"
-  restore_x_flag $save
 }
 
 function wait_for_service_endpoints_ready {
-  local save=$-
-  set +x
   check_num_params "$#" "3"
   local namespace="${1}"
   local name="${2}"
@@ -628,12 +573,9 @@ function wait_for_service_endpoints_ready {
   wait_specified_time_test "test \"\$(kubectl get endpoints -n ${namespace} ${name} | grep -c \":${port}\")\" -eq \"1\"" "5"
   log "Done waiting for ${name} service endpoints to be ready"
   kubectl get endpoints -n ${namespace} ${name}
-  restore_x_flag $save
 }
 
 function wait_for_service_ready_cilium_pod {
-  local save=$-
-  set +x
   check_num_params "$#" "4"
   local namespace="${1}"
   local pod="${2}"
@@ -650,12 +592,9 @@ function wait_for_service_ready_cilium_pod {
   
   log "Listing all services:"
   kubectl -n ${namespace} exec ${pod} -- cilium service list
-  restore_x_flag $save
 }
 
 function k8s_apply_policy {
-  local save=$-
-  set +x
   declare -A currentRevison
   local i
   local pod
@@ -686,23 +625,16 @@ function k8s_apply_policy {
 
   # Adding sleep as workaround for l7 stresstests
   sleep 10s
-  restore_x_flag $save
 }
 
 function policy_delete_and_wait {
-  local save=$-
-  set +x
   rev=$(cilium policy delete $* | grep Revision: | awk '{print $2}')
   timeout 120s cilium policy wait $rev
-  restore_x_flag $save
 }
 
 function policy_import_and_wait {
-  local save=$-
-  set +x
   rev=$(cilium policy import $* | grep Revision: | awk '{print $2}')
   timeout 120s cilium policy wait $rev
-  restore_x_flag $save
 }
 
 function get_vm_identity_file {
@@ -718,8 +650,6 @@ function get_vm_ssh_port {
 }
 
 function copy_files_vm {
-  local save=$-
-  set +x
   check_num_params "$#" "2"
   local VM_NAME=$1
   local FILES_DIR=$2
@@ -742,7 +672,6 @@ function copy_files_vm {
 
   log "copying logs from $VM_NAME onto VM host for accessibility after VM is destroyed"
   scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r -P ${PORT} -i ${ID_FILE} vagrant@127.0.0.1:/home/vagrant/go/src/github.com/cilium/cilium/${FILES_DIR} ${WORKSPACE}/cilium-files-${VM_NAME}
-  restore_x_flag $save
 }
 
 function get_k8s_vm_name {
@@ -768,8 +697,6 @@ function get_cilium_master_vm_name {
 }
 
 function check_vm_running {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   local VM=$1
   log "getting status of VM ${VM}"
@@ -783,12 +710,9 @@ function check_vm_running {
   else
     log "$VM is \"running\" continuing"
   fi
-  restore_x_flag $save
 }
 
 function wait_for_agent_socket {
-  local save=$-
-  set +x
   check_num_params "$#" "1"
   MAX_WAIT=$1
 
@@ -799,17 +723,13 @@ function wait_for_agent_socket {
     micro_sleep
     i=$[$i+1]
     if [ -S $AGENT_SOCK_PATH ]; then
-      restore_x_flag $save
       return
     fi
   done
-  restore_x_flag $save
   abort "Waiting for agent socket, timed out"
 }
 
 function wait_for_kill {
-  local save=$-
-  set +x
   check_num_params "$#" "2"
   TARGET_PID=$1
   MAX_WAIT=$2
@@ -821,11 +741,9 @@ function wait_for_kill {
     micro_sleep
     i=$[$i+1]
     if ! ps -p $TARGET_PID > /dev/null; then
-      restore_x_flag $save
       return
     fi
   done
-  restore_x_flag $save
   abort "Waiting for agent process to be killed, timed out"
 }
 
@@ -834,8 +752,6 @@ function wait_for_kill {
 # executed consecutively with a 2 second pause until the output matches or the
 # timeout of 1 minute is reached.
 function diff_timeout() {
-  local save=$-
-  set +x
 
   local arg1="$1"
   local arg2="$2"
@@ -846,7 +762,6 @@ function diff_timeout() {
   until [[ "$found" -eq "1" ]]; do
     if [[ $((iter++)) -gt $((30)) ]]; then
       log "Timeout waiting for diff to be empty"
-      restore_x_flag $save
       abort "$DIFF"
     fi
 
@@ -857,7 +772,6 @@ function diff_timeout() {
       sleep $sleep_time
     fi
   done
-  restore_x_flag $save
 }
 
 #######################################
@@ -880,8 +794,6 @@ function diff_timeout() {
 #   None
 #######################################
 function wait_for_desired_state {
-  local save=$-
-  set +x
  
   check_num_params "$#" "5"
   local NUM_DESIRED="$1"
@@ -900,7 +812,6 @@ function wait_for_desired_state {
     if [[ $((iter++)) -gt $((${MAX_MINS}*60/$sleep_time)) ]]; then
       echo ""
       log $ERROR_OUTPUT
-      restore_x_flag $save
       exit 1
     else
       log "desired state not realized; will sleep and try again"
@@ -913,7 +824,6 @@ function wait_for_desired_state {
   done
   log "desired state realized for command ${CMD}"
   eval "${INFO_CMD}"
-  restore_x_flag $save
 }
 
 #######################################
@@ -930,8 +840,6 @@ function wait_for_desired_state {
 #   None
 #######################################
 function wait_specified_time_test {
-  local save=$-
-  set +x
   local CMD="$1"
   local MAX_MINS="$2"
 
@@ -952,11 +860,9 @@ function wait_specified_time_test {
   if [[ "${iter}" -ge $((${MAX_MINS}*60/$sleep_time)) ]]; then
     log "Timeout ${MAX_MINS} minutes exceeded for command \"$CMD\""
     log "Exiting with failure."
-    restore_x_flag $save
     exit 1
   fi
   log "${CMD} succeeded"
-  restore_x_flag $save
 }
 
 function create_cilium_docker_network {

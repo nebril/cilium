@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+TEST_NAME="97-clean-leftovers"
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 NETPERF_IMAGE="tgraf/netperf"
 
 create_cilium_docker_network
-
-set -x
 
 docker run -dt --net=$TEST_NET --name server -l id.test $NETPERF_IMAGE
 

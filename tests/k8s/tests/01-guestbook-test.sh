@@ -15,9 +15,13 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source "${dir}/../cluster/env.bash"
 
-NAMESPACE="kube-system"
-TEST_NAME="01-guestbook-test"
+TEST_NAME=$(get_filename_without_extension $0)
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
+
+NAMESPACE="kube-system"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
 log "running test: $TEST_NAME"
@@ -79,8 +83,6 @@ else
 fi
 
 cilium_id=$(docker ps -aq --filter=name=cilium-agent)
-
-set -e
 
 # Set redis on master to force inter-node communication
 node_selector="k8s-1"

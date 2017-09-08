@@ -5,28 +5,30 @@ source "${dir}/helpers.bash"
 # dir might have been overwritten by helpers.bash
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-set -e
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 TEST_NET="cilium-net"
 NUM_ENDPOINTS="3"
 
 NAMESPACE="kube-system"
 GOPATH="/home/vagrant/go"
-TEST_NAME="14-policy-enforcement-docker"
-LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
 
 ENABLED_CMD="cilium endpoint list | awk '{print \$2}' | grep 'Enabled' -c"
 DISABLED_CMD="cilium endpoint list | awk '{print \$2}' | grep 'Disabled' -c"
 
 function cleanup {
-  log "beginning cleanup for $0"
+  log "beginning cleanup for ${TEST_NAME}"
   log "removing containers foo bar and baz"
   docker rm -f foo bar baz 2> /dev/null || true
   policy_delete_and_wait "--all" 2> /dev/null || true
   log "removing docker network $TEST_NET"
   docker network rm ${TEST_NET} 2> /dev/null || true
   cilium config PolicyEnforcement=default || true
-  log "cleanup done for $0"
+  log "cleanup done for ${TEST_NAME}"
 }
 
 function finish_test {

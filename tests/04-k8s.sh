@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
+
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-source "./helpers.bash"
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
 
-set -e
+set -ex
 
 logs_clear
 
@@ -36,8 +42,6 @@ function cleanup {
 trap cleanup EXIT
 
 monitor_start
-
-set -x
 
 if [ ! "${dir}/../contrib/vagrant/cilium-k8s-install-2nd-part.sh" ]; then
   echo "File ${dir}/../contrib/vagrant/cilium-k8s-install-2nd-part.sh not found, falling back to default"

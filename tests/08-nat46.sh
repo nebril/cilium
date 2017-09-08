@@ -1,8 +1,15 @@
 #!/bin/bash
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-set -e
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 function cleanup {
   cilium policy delete --all 2> /dev/null || true
@@ -11,7 +18,7 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 08-nat46 ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
 }
 
@@ -46,8 +53,6 @@ echo SERVER_ID=$SERVER_ID
 
 wait_for_docker_ipv6_addr client
 wait_for_docker_ipv6_addr server
-
-set -x
 
 cat <<EOF | policy_import_and_wait -
 [{

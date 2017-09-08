@@ -1,8 +1,15 @@
 #!/bin/bash
 
-set -e
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-source ./helpers.bash
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 function cleanup {
   log "beginning cleanup for $0"
@@ -14,13 +21,13 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 17-cilium_policy-id-remove ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
 }
 
 trap finish_test EXIT
 
-log "running cleanup before $0 begins"
+log "running cleanup before ${TEST_NAME} begins"
 cleanup
 logs_clear
 

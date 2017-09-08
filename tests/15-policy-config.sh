@@ -1,6 +1,15 @@
 #!/bin/bash
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 LIST_CMD="cilium endpoint list | awk '{print \$2}' | grep 'Enabled\|Disabled'"
 CFG_CMD="cilium config | grep PolicyEnforcement | awk '{print \$2}'"
@@ -43,7 +52,7 @@ EOF
 }
 
 function cleanup {
-  gather_files 15-policy-config ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   policy_import_and_wait "--all" 2> /dev/null || true
   remove_containers
 }

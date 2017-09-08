@@ -13,8 +13,6 @@
 # stress test is completed, it will install a policy and run the stress test
 # one more time.
 
-set -ex
-
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"
 # dir might have been overwritten by helpers.bash
@@ -22,9 +20,13 @@ dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source "${dir}/../cluster/env.bash"
 
-NAMESPACE="kube-system"
-TEST_NAME="03-l7-stresstest"
+TEST_NAME=$(get_filename_without_extension $0)
 LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
+
+NAMESPACE="kube-system"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
 log "running test: $TEST_NAME"

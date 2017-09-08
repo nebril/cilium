@@ -1,8 +1,15 @@
 #!/bin/bash
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-set -e
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 NETPERF_IMAGE="tgraf/netperf"
 
@@ -13,7 +20,7 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 03-docker ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
 }
 
@@ -30,8 +37,6 @@ policy_import_and_wait ./policy
 create_cilium_docker_network
 
 monitor_start
-
-set -x
 
 docker run -dt --net=$TEST_NET --name server -l $SERVER_LABEL $NETPERF_IMAGE
 docker run -dt --net=$TEST_NET --name client -l $CLIENT_LABEL $NETPERF_IMAGE

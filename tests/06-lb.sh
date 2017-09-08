@@ -13,9 +13,16 @@
 
 # Only run basic IPv4 tests if IPV4=1 has been set
 
-source "./helpers.bash"
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${dir}/helpers.bash"
+# dir might have been overwritten by helpers.bash
+dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-set -e
+TEST_NAME=$(get_filename_without_extension $0)
+LOGS_DIR="${dir}/cilium-files/${TEST_NAME}/logs"
+redirect_debug_logs ${LOGS_DIR}
+
+set -ex
 
 #cilium config ConntrackLocal=true
 
@@ -34,7 +41,7 @@ function cleanup {
 }
 
 function finish_test {
-  gather_files 06-lb ${TEST_SUITE}
+  gather_files ${TEST_NAME} ${TEST_SUITE}
   cleanup
 }
 
@@ -50,8 +57,6 @@ function host_ip4()
 
 trap finish_test EXIT
 cleanup
-
-set -x
 
 ip addr add $HOSTIP6 dev cilium_host
 
