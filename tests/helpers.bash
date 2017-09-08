@@ -68,7 +68,7 @@ function monitor_resume {
   log "resuming monitor and dumping contents to $DUMP_FILE"
   cilium monitor -v $@ >> $DUMP_FILE &
   MONITOR_PID=$!
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function monitor_clear {
@@ -77,7 +77,7 @@ function monitor_clear {
   log "clearing monitor"
   cp /dev/null $DUMP_FILE
   nstat > /dev/null
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function monitor_dump {
@@ -85,7 +85,7 @@ function monitor_dump {
   set +e
   nstat
   cat $DUMP_FILE
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function monitor_stop {
@@ -94,7 +94,7 @@ function monitor_stop {
   if [ ! -z "$MONITOR_PID" ]; then
     kill $MONITOR_PID || true
   fi
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function logs_clear {
@@ -153,7 +153,7 @@ function wait_for_endpoints {
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for $NUM_DESIRED endpoints"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function k8s_num_ready {
@@ -163,7 +163,7 @@ function k8s_num_ready {
   local CILIUM_POD=$2
   local FILTER=$3
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list | grep $FILTER | grep -v 'not-ready' | grep -c 'ready' || true
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function wait_for_k8s_endpoints {
@@ -189,7 +189,7 @@ function wait_for_k8s_endpoints {
     if [[ $((iter++)) -gt $((5*60/$sleep_time)) ]]; then
       echo ""
       log "Timeout while waiting for $NUM endpoints"
-      restore_flags $save "e"
+      restore_flag $save "e"
       exit 1
     else
       kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
@@ -201,7 +201,7 @@ function wait_for_k8s_endpoints {
   done
 
   kubectl -n ${NAMESPACE} exec ${CILIUM_POD} cilium endpoint list
-  restore_flags $save "e"
+  restore_flag $save "e"
 }
 
 function wait_for_cilium_status {
