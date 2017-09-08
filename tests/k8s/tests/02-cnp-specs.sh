@@ -22,8 +22,6 @@
 #  - Reviews-v1 will not be able to reach Ratings endpoint `/`.
 #
 
-
-
 dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${dir}/../helpers.bash"
 # dir might have been overwritten by helpers.bash
@@ -43,7 +41,6 @@ NAMESPACE="kube-system"
 LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) | awk '{ print $1 }' | grep cilium)"
 
 log "running test: $TEST_NAME"
-
 
 function finish_test {
   gather_files ${TEST_NAME} k8s-tests
@@ -85,6 +82,7 @@ wait_for_service_endpoints_ready default productpage 9080
 #wait_for_service_ready_cilium_pod ${NAMESPACE} ${LOCAL_CILIUM_POD} 9080 9080
 wait_for_cilium_ep_gen k8s ${NAMESPACE} ${LOCAL_CILIUM_POD}
 
+set +e
 
 # Every thing should be reachable since we are not enforcing any policies
 
