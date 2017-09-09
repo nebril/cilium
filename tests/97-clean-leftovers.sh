@@ -37,3 +37,5 @@ set -e
 cur_ifs=$(sudo ip link show | wc -l)
 
 if [ ${prev_ifs} -ne ${cur_ifs} ]; then abort "Some network interfaces were accidentally removed!" ; fi
+
+test_succeeded "${TEST_NAME}"
