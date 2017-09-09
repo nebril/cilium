@@ -60,3 +60,5 @@ kill ${MON_1_PID} ${MON_2_PID} ${MON_3_PID}
 if ! diff3 ${MON_1_OUTPUT} ${MON_2_OUTPUT} ${MON_3_OUTPUT}; then
   abort "Monitor output does not match `diff ${MON_1_OUTPUT} ${MON_2_OUTPUT}`"
 fi
+
+test_succeeded "${TEST_NAME}"
