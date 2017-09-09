@@ -70,4 +70,4 @@ echo "Testing ingress connectivity between VMs"
 
 curl "$(kubectl config view | grep server: | sed -e 's/    server: //' -e 's/:[0-9]*$//'):80"
 
-echo "SUCCESS!"
+test_succeeded "${TEST_NAME}"
