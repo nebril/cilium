@@ -276,4 +276,6 @@ test_default_policy_configuration
 test_default_to_true_policy_configuration
 test_default_to_false_policy_configuration
 test_true_policy_configuration
-test_false_policy_configuration 
+test_false_policy_configuration
+
+test_succeeded "${TEST_NAME}"
