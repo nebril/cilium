@@ -231,3 +231,5 @@ docker run --rm -i --net ${TEST_NET} -l "${ID_SERVICE3}" --cap-add NET_ADMIN ${D
 set -e
 
 policy_delete_and_wait "--all"
+
+test_succeeded "${TEST_NAME}"
