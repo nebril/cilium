@@ -18,3 +18,4 @@ if grep "Not Found for url" $LINKCHECK_OUTPUT; then
 fi
 
 # TODO: also check the README.md
+test_succeeded "${TEST_NAME}"
