@@ -943,3 +943,17 @@ function remove_cilium_docker_network {
 function remove_all_containers {
   docker rm -f $(docker ps --format '{{.Names}}' | grep -v cilium-consul) > /dev/null 2>&1 || true
 }
+
+function test_succeeded {
+  check_num_params "$#" "1"
+  local TEST_NAME="$1"
+  echo "============================================================"
+  echo "==                                                        =="
+  echo "==                                                        =="
+  echo "==                                                        =="
+  echo "    ${TEST_NAME} succeeded!"
+  echo "==                                                        =="
+  echo "==                                                        =="
+  echo "==                                                        =="
+  echo "============================================================"
+} 
