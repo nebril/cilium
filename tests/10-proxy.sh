@@ -34,6 +34,7 @@ cleanup
 logs_clear
 
 function service_init {
+  log "beginning service init"
   cilium service update --rev --frontend "$SVC_IP4:80" --id 2233 \
 			--backends "$SERVER1_IP4:80" \
 			--backends "$SERVER2_IP4:80"
@@ -44,9 +45,11 @@ function service_init {
 
   SERVER_IP=$SVC_IP
   SERVER_IP4=$SVC_IP4
+  log "finished service init"
 }
 
 function proxy_init {
+  log "beginning proxy_init"
   create_cilium_docker_network
 
   docker run -dt --net=$TEST_NET --name server1 -l $SERVER_LABEL cilium/demo-httpd
@@ -67,6 +70,7 @@ function proxy_init {
 
   wait_for_cilium_ep_gen
   cilium endpoint list
+  log "finished proxy_init"
 }
 
 function policy_single_egress {
@@ -251,33 +255,39 @@ EOF
 }
 
 function proxy_test {
+  log "beginning proxy test"
   wait_for_endpoints 3
 
+  log "trying to reach server IPv4 at http://$SERVER_IP4:80/public from client (expected: 200)"
   RETURN=$(docker exec -i client bash -c "curl -s --output /dev/stderr -w '%{http_code}' --connect-timeout 10 -XGET http://$SERVER_IP4:80/public")
   if [[ "${RETURN//$'\n'}" != "200" ]]; then
     abort "GET /public, unexpected return ${RETURN//$'\n'} != 200"
   fi
 
+  log "trying to reach server IPv6 at http://[$SERVER_IP]:80/public from client (expected: 200)"
   RETURN=$(docker exec -i client bash -c "curl -s --output /dev/stderr -w '%{http_code}' --connect-timeout 10 -XGET http://[$SERVER_IP]:80/public")
   if [[ "${RETURN//$'\n'}" != "200" ]]; then
     abort "GET /public, unexpected return ${RETURN//$'\n'} != 200"
   fi
 
+  log "trying to reach server IPv4 at http://$SERVER_IP4:80/private from client (expected: 403)"
   RETURN=$(docker exec -i client bash -c "curl -s --output /dev/stderr -w '%{http_code}' --connect-timeout 10 -XGET http://$SERVER_IP4:80/private")
   if [[ "${RETURN//$'\n'}" != "403" ]]; then
     abort "GET /private, unexpected return ${RETURN//$'\n'} != 403"
   fi
 
+  log "trying to reach server IPv6 at http://[$SERVER_IP]:80/private from client (expected: 403)"
   RETURN=$(docker exec -i client bash -c "curl -s --output /dev/stderr -w '%{http_code}' --connect-timeout 10 -XGET http://[$SERVER_IP]:80/private")
   if [[ "${RETURN//$'\n'}" != "403" ]]; then
     abort "GET /private, unexpected return ${RETURN//$'\n'} != 403"
   fi
+  log "finished proxy test"
 }
 
 for service in "none" "lb"; do
   for policy in "egress" "ingress" "egress_and_ingress" "many_egress" "many_ingress"; do
     for state in "false" "true"; do
-      echo "Testing with Policy=$policy, Conntrack=$state, Service=$service"
+      log "Testing with Policy=$policy, Conntrack=$state, Service=$service"
       cilium config ConntrackLocal=$state
       wait_for_cilium_ep_gen
       proxy_init
@@ -307,10 +317,15 @@ for service in "none" "lb"; do
       wait_for_policy_enforcement
       cilium endpoint list
       proxy_test
+      log "deleting all services from Cilium"
       cilium service delete --all
+      log "deleting all policies from Cilium"
       cilium policy delete --all 2> /dev/null || true
+      log "removing containers"
       docker rm -f server1 server2 client 2> /dev/null || true
       wait_for_cilium_ep_gen
     done
   done
 done
+
+test_succeeded "${TEST_NAME}"
