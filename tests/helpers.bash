@@ -681,6 +681,7 @@ function policy_delete_and_wait {
 }
 
 function policy_import_and_wait {
+  log "importing policy $* and waiting up to 120 seconds"
   rev=$(cilium policy import $* | grep Revision: | awk '{print $2}')
   timeout 120s cilium policy wait $rev
 }
