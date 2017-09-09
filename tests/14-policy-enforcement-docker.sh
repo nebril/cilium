@@ -231,3 +231,5 @@ log " Test 17: never --> default mode: check that each endpoint has policy enfor
 cilium config PolicyEnforcement=default
 wait_for_endpoints ${NUM_ENDPOINTS}
 check_endpoints_policy_disabled ${NUM_ENDPOINTS}
+
+test_succeeded "${TEST_NAME}"
