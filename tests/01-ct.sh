@@ -127,46 +127,56 @@ EOF
 wait_for_endpoints 6
 
 function connectivity_test() {
+  log "beginning connectivity test with BIDIRECTIONAL=${BIDIRECTIONAL}"
   monitor_clear
+  log "trying to curl http://[$HTTPD1_IP]:80 from curl container (should work)"
   docker exec -i curl bash -c "curl --connect-timeout 5 -XGET http://[$HTTPD1_IP]:80" || {
     abort "Error: Could not reach httpd1 on port 80"
   }
 
   monitor_clear
+  log "trying to curl http://[$HTTPD1_IP4]:80 from curl container (should work)"
   docker exec -i curl bash -c "curl --connect-timeout 5 -XGET http://$HTTPD1_IP4:80" || {
     abort "Error: Could not reach httpd1 on port 80"
   }
 
   # FIXME(amre): Change following two expectations to the opposite when Issue #789 is fixed
   monitor_clear
+  log "trying to curl http://[$HTTPD1_IP]:80 from curl2 container (should work)"
   docker exec -i curl2 bash -c "curl --connect-timeout 5 -XGET http://[$HTTPD1_IP]:80" || {
     abort "Error: Could not reach httpd1 on port 80"
   }
 
   monitor_clear
+  log "trying to curl http://[$HTTPD1_IP4]:80 from curl2 container (should work)"
   docker exec -i curl2 bash -c "curl --connect-timeout 5 -XGET http://$HTTPD1_IP4:80" || {
     abort "Error: Could not reach httpd1 on port 80"
   }
 
   monitor_clear
+  log "trying to curl http://[$HTTPD2_IP]:80 from curl container (shouldn't work)"
   docker exec -i curl bash -c "curl --connect-timeout 5 -XGET http://[$HTTPD2_IP]:80" && {
     abort "Error: Unexpected success reaching httpd2 on port 80"
   }
 
   monitor_clear
+  log "trying to curl http://[$HTTPD2_IP4]:80 from curl container (shouldn't work)"
   docker exec -i curl bash -c "curl --connect-timeout 5 -XGET http://$HTTPD2_IP4:80" && {
     abort "Error: Unexpected success reaching httpd2 on port 80"
   }
 
   # ICMPv6 echo request client => server should succeed
   monitor_clear
+  log "trying to ping6 $SERVER_IP from client container (should work)"
   docker exec -i client ping6 -c 5 $SERVER_IP || {
     abort "Error: Could not ping server container from client"
   }
 
   if [ $SERVER_IP4 ]; then
     # ICMPv4 echo request client => server should succeed
+   
     monitor_clear
+    log "trying to ping $SERVER_IP4 from client container (should work)"
     docker exec -i client ping -c 5 $SERVER_IP4 || {
       abort "Error: Could not ping server container from client"
     }
@@ -174,6 +184,7 @@ function connectivity_test() {
 
   # ICMPv6 echo request host => server should succeed
   monitor_clear
+  log "trying to ping6 $SERVER_IP from host (should work)"
   ping6 -c 5 $SERVER_IP || {
     abort "Error: Could not ping server container from host"
   }
@@ -181,6 +192,7 @@ function connectivity_test() {
   if [ $SERVER_IP4 ]; then
     # ICMPv4 echo request host => server should succeed
     monitor_clear
+    log "trying to ping $SERVER_IP4 from host (should work)"
     ping -c 5 $SERVER_IP4 || {
       abort "Error: Could not ping server container from host"
     }
@@ -189,8 +201,10 @@ function connectivity_test() {
   # FIXME: IPv4 host connectivity not working yet
 
   if [ $BIDIRECTIONAL = 1 ]; then
+    log "BIDIRECTIONAL flag set"
     # ICMPv6 echo request server => client should not succeed
     monitor_clear
+    log "trying to ping6 $CLIENT_IP from server container (shouldn't work)"
     docker exec -i server ping6 -c 2 $CLIENT_IP && {
       abort "Error: Unexpected success of ICMPv6 echo request"
     }
@@ -198,6 +212,7 @@ function connectivity_test() {
     if [ $CLIENT_IP4 ]; then
       # ICMPv4 echo request server => client should not succeed
       monitor_clear
+      log "trying to ping $CLIENT_IP4 from server container (shouldn't work)"
       docker exec -i server ping -c 2 $CLIENT_IP4 && {
         abort "Error: Unexpected success of ICMPv4 echo request"
       }
@@ -206,6 +221,7 @@ function connectivity_test() {
 
   # TCP request to closed port should fail
   monitor_clear
+  log "trying to netcat $SERVER_IP on port 777 from client container (should fail)"
   docker exec -i client nc -w 5 $SERVER_IP 777 && {
     abort "Error: Unexpected success of TCP IPv6 session to port 777"
   }
@@ -213,6 +229,7 @@ function connectivity_test() {
   if [ $SERVER_IP4 ]; then
     # TCP request to closed port should fail
     monitor_clear
+    log "trying to netcat $SERVER_IP4 on port 777 from client container (should fail)"
     docker exec -i client nc -w 5 $SERVER_IP4 777 && {
       abort "Error: Unexpected success of TCP IPv4 session to port 777"
     }
@@ -220,6 +237,7 @@ function connectivity_test() {
 
   # TCP client=>server should succeed
   monitor_clear
+  log "trying to reach $SERVER_IP from client container via TCP (should succeed)"
   docker exec -i client netperf -l 3 -t TCP_RR -H $SERVER_IP || {
     abort "Error: Unable to reach netperf TCP IPv6 endpoint"
   }
@@ -227,6 +245,7 @@ function connectivity_test() {
   if [ $SERVER_IP4 ]; then
     # TCP client=>server should succeed
     monitor_clear
+    log "trying to reach $SERVER_IP4 from client container via TCP (should succeed)"
     docker exec -i client netperf -l 3 -t TCP_RR -H $SERVER_IP4 || {
       abort "Error: Unable to reach netperf TCP IPv4 endpoint"
     }
@@ -238,8 +257,9 @@ function connectivity_test() {
   #	abort "Error: Unexpected success of TCP netperf session"
   #}
 
-  # UDP client=server should succeed
+  # UDP client=>server should succeed
   monitor_clear
+  log "trying to reach $SERVER_IP from client container via UDP (should succeed)"
   docker exec -i client netperf -l 3 -t UDP_RR -H $SERVER_IP || {
     abort "Error: Unable to reach netperf TCP IPv6 endpoint"
   }
@@ -247,6 +267,7 @@ function connectivity_test() {
   if [ $SERVER_IP4 ]; then
     # UDP client=server should succeed
     monitor_clear
+    log "trying to reach $SERVER_IP4 from client container via UDP (should succeed)"
     docker exec -i client netperf -l 3 -t UDP_RR -H $SERVER_IP4 || {
       abort "Error: Unable to reach netperf TCP IPv4 endpoint"
     }
@@ -257,31 +278,47 @@ function connectivity_test() {
   #docker exec -i server netperf -l 3 -t UDP_RR -H $CLIENT_IP && {
   #	abort "Error: Unexpected success of UDP netperf session"
   #}
+  log "connectivity_test complete"
 }
 
 BIDIRECTIONAL=1
 connectivity_test
+log "setting server endpoint $SERVER_ID's config: ConntrackLocal=true"
 cilium endpoint config $SERVER_ID ConntrackLocal=true || {
 	abort "Error: Unable to change config for $SERVER_ID"
 }
+
+log "setting client endpoint $CLIENT_ID's config: ConntrackLocal=true"
 cilium endpoint config $CLIENT_ID ConntrackLocal=true || {
   abort "Error: Unable to change config for $CLIENT_ID"
 }
+
 connectivity_test
+
+log "setting server endpoint $SERVER_ID's config: ConntrackLocal=false"
 cilium endpoint config $SERVER_ID ConntrackLocal=false || {
   abort "Error: Unable to change config for $SERVER_ID"
 }
+
+log "setting client endpoint $CLIENT_ID's config: ConntrackLocal=false"
 cilium endpoint config $CLIENT_ID ConntrackLocal=false || {
   abort "Error: Unable to change config for $CLIENT_ID"
 }
+
 connectivity_test
+
+log "setting server endpoint $SERVER_ID's config: Conntrack=false"
 cilium endpoint config $SERVER_ID Conntrack=false || {
   abort "Error: Unable to change config for $SERVER_ID"
 }
+
+log "setting client endpoint $CLIENT_ID's config: Conntrack=false"
 cilium endpoint config $CLIENT_ID Conntrack=false || {
   abort "Error: Unable to change config for $CLIENT_ID"
 }
+
 wait_for_endpoints 6
+
 BIDIRECTIONAL=0
 connectivity_test
 
@@ -298,4 +335,7 @@ policy_delete_and_wait id=httpd
 #    abort "some of the CT entries should have been removed after policy change"
 #fi
 
+log "deleting all policies in Cilium"
 cilium policy delete --all
+
+test_succeeded "${TEST_NAME}"
