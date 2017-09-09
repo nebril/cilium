@@ -27,9 +27,12 @@ sudo service cilium restart
 
 wait_for_cilium_status
 
+set +e
 sudo ip link show lxc12345
-
-if [ $? -eq 0 ]; then abort "leftover interface were not properly clean up" ; fi
+if [ $? -eq 0 ]; then
+  abort "leftover interface were not properly cleaned up"
+fi
+set -e
 
 cur_ifs=$(sudo ip link show | wc -l)
 
