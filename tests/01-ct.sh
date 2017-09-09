@@ -67,7 +67,6 @@ create_cilium_docker_network
 start_containers
 get_container_metadata
 
-
 log "endpoint list output:"
 cilium endpoint list
 
