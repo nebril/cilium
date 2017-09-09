@@ -85,3 +85,5 @@ cilium endpoint list
 create_cilium_docker_network
 
 test_identity_get
+
+test_succeeded "${TEST_NAME}"
