@@ -53,3 +53,5 @@ if [[ "${before_restart_md5}" != "${after_restart_md5}" ]]; then
     echo "${after_restart}"
     abort "Restore functionality didn't work!"
 fi
+
+test_succeeded "${TEST_NAME}"
