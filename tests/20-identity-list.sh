@@ -90,3 +90,5 @@ cleanup
 logs_clear
 
 test_identity_list_reserved
+
+test_succeeded "${TEST_NAME}"
