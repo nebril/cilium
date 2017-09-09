@@ -35,9 +35,9 @@ function spin_up_container {
   log "starting container $CONTAINER"
   docker run -d --net cilium --name $CONTAINER -l $CLIENT_LABEL tgraf/netperf > /dev/null 2>&1
   log "output of ip -6 address list in container $CONTAINER"
-  docker exec -ti $CONTAINER ip -6 address list
+  docker exec -i $CONTAINER ip -6 address list
   log "output of 'ip -6 route list dev cilium0' in container $CONTAINER"
-  docker exec -ti $CONTAINER ip -6 route list dev cilium0 
+  docker exec -i $CONTAINER ip -6 route list dev cilium0 
   log "done starting container $CONTAINER"
 }
 
