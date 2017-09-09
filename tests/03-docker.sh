@@ -38,7 +38,9 @@ create_cilium_docker_network
 
 monitor_start
 
+log "running server container"
 docker run -dt --net=$TEST_NET --name server -l $SERVER_LABEL $NETPERF_IMAGE
+log "running client container"
 docker run -dt --net=$TEST_NET --name client -l $CLIENT_LABEL $NETPERF_IMAGE
 
 wait_for_endpoints 2
@@ -46,30 +48,36 @@ wait_for_endpoints 2
 SERVER_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cilium.GlobalIPv6Address }}' server)
 
 monitor_clear
+log "ping6 to server from client (should succeed)"
 docker exec -i client ping6 -c 5 $SERVER_IP || {
   abort "Error: Could not ping server container"
 }
 
 monitor_clear
+log "netperf to server from client (should succeed)"
 docker exec -i client netperf -c -C -H $SERVER_IP || {
   abort "Error: Could not netperf to server"
 }
 
 monitor_clear
+log "netperf to server from client (should succeed)"
 docker exec -i client netperf -c -C -t TCP_SENDFILE -H $SERVER_IP || {
   abort "Error: Could not netperf to server"
 }
 
 monitor_clear
+log "super_netperf to server from client (should succeed)"
 docker exec -i client super_netperf 10 -c -C -t TCP_SENDFILE -H $SERVER_IP || {
   abort "Error: Could not netperf to server"
 }
 
 monitor_clear
+log "pinging server from host (should succeed)"
 ping6 -c 5 "$SERVER_IP" || {
   abort "Error: Could not ping server container from host"
 }
 
+log "deleting policy id=server from Cilium"
 cilium policy delete id=server
 
 # FIXME Disabled for now as we don't have a reliable way to wait for the async
@@ -80,4 +88,7 @@ cilium policy delete id=server
 #	abort "Error: Unexpected connectivity between host and server after policy removed"
 #}
 
+log "deleting all policies in Cilium"
 cilium policy delete --all
+
+test_succeeded "${TEST_NAME}"
