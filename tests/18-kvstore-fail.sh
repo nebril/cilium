@@ -75,3 +75,5 @@ function test_kvstore {
 #systemctl start cilium-etcd
 #
 #test_kvstore etcd "4001"
+
+test_succeeded "${TEST_NAME}"
