@@ -92,7 +92,7 @@ function monitor_stop {
   local save=$-
   set +e
   if [ ! -z "$MONITOR_PID" ]; then
-    kill $MONITOR_PID || true
+    kill $MONITOR_PID || true > /dev/null 2>&1
   fi
   restore_flag $save "e"
 }
@@ -929,7 +929,9 @@ function create_cilium_docker_network {
 }
 
 function remove_cilium_docker_network {
-  docker network inspect $TEST_NET 2> /dev/null || {
-    docker network rm $TEST_NET > /dev/null 2>&1 
-  }
+  local save=$-
+  set +e
+  log "removing Docker network of type cilium"
+  docker network rm $TEST_NET > /dev/null 2>&1 
+  restore_flag $save "e"
 }

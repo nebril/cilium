@@ -13,15 +13,17 @@ set -ex
 
 logs_clear
 
-echo "------ monitor filtering ------"
+log "starting test ${TEST_NAME}"
 
 CLIENT_LABEL="client"
 CONTAINER=monitor_tests
 
 function cleanup {
+  log "beginning cleanup for $TEST_NAME"
   docker rm -f $CONTAINER 2> /dev/null || true
   remove_cilium_docker_network
   monitor_stop
+  log "done with cleanup for $TEST_NAME"
 }
 
 function finish_test {
@@ -30,9 +32,11 @@ function finish_test {
 }
 
 function spin_up_container {
+  log "starting containers"
   docker run -d --net cilium --name $CONTAINER -l $CLIENT_LABEL tgraf/netperf > /dev/null 2>&1
   docker exec -ti $CONTAINER ip -6 address list > /dev/null 2>&1
   docker exec -ti $CONTAINER ip -6 route list dev cilium0 > /dev/null 2>&1
+  log "done starting containers"
 }
 
 function setup {
@@ -43,24 +47,26 @@ function setup {
 }
 
 function test_event_types {
-  echo "------ event filter ------"
+  log "event filter"
   cilium config Debug=true DropNotification=true TraceNotification=true
 
   event_types=( drop debug capture )
   expected_log_entry=( "Packet dropped" "DEBUG:" "DEBUG:" )
 
-  for ((i=0;i<${#event_types[@]};++i)); do
-    echo "------- ${event_types[i]} -------"
+  for ((index=0;index<${#event_types[@]};++index)); do
+    log "starting ${event_types[index]}"
     setup
-    monitor_start --type ${event_types[i]}
+    monitor_start --type ${event_types[index]}
     spin_up_container
     wait_for_log_entries 3
-    if grep "${expected_log_entry[i]}" $DUMP_FILE; then
-      echo Test for ${event_types[i]} succeded
+    if grep "${expected_log_entry[index]}" $DUMP_FILE; then
+      log "test for ${event_types[index]} succeded"
     else
       abort
     fi
+    log "finished ${event_types[index]}"
   done
+  log "finished test_event_types"
 }
 
 function last_endpoint_id {
@@ -72,7 +78,7 @@ function container_addr {
 }
 
 function test_from {
-  echo "------ from filter ------"
+  log "from filter"
   cilium config Debug=true DropNotification=true TraceNotification=true
   setup
   spin_up_container
@@ -84,39 +90,46 @@ function test_from {
   fi
   wait_for_log_entries 1
   if grep "FROM $(last_endpoint_id) DEBUG: " $DUMP_FILE; then
-    echo Test succeded test_from
+    log "Test succeded test_from"
   else
     abort
   fi
 }
 
 function test_to {
-  echo "------ to filter ------"
+  log "to filter"
   cilium config Debug=true DropNotification=true TraceNotification=true PolicyEnforcement=always
   setup
   spin_up_container
   monitor_start --type drop --to $(last_endpoint_id)
+  # Packets should be dropped.
+  set +e 
   ping6 -c 3 $(container_addr)
+  set -e 
   if grep "FROM $(last_endpoint_id) Packet dropped" $DUMP_FILE; then
-    echo Test succeded test_to
+    log "Test succeded test_to"
   else
     abort
   fi
 }
 
 function test_related_to {
-  echo "------ related to filter ------"
+  log "related to filter"
   cilium config Debug=true DropNotification=true TraceNotification=true PolicyEnforcement=always
   setup
   spin_up_container
   monitor_start --type drop --related-to $(last_endpoint_id)
+  set +e
   ping6 -c 3 $(container_addr)
+  set -e
   monitor_stop
   monitor_resume --type debug --related-to $(last_endpoint_id)
+  set +e
   ping6 -c 3 $(container_addr)
+  set -e
   if grep "FROM $(last_endpoint_id) DEBUG: " $DUMP_FILE && \
    grep "FROM $(last_endpoint_id) Packet dropped" $DUMP_FILE; then
-    echo Test succeded test_from
+    log "Test succeded test_related_to"
   else
     abort
   fi
@@ -129,3 +142,4 @@ test_from
 test_to
 test_related_to
 cleanup
+log "${TEST_NAME} succeeded"
