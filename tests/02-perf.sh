@@ -186,3 +186,4 @@ cilium endpoint config $CLIENT_ID Policy=false
 perf_test
 
 cilium policy delete --all
+test_succeeded "${TEST_NAME}"
