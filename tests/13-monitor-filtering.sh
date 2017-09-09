@@ -144,4 +144,5 @@ test_from
 test_to
 test_related_to
 cleanup
-log "${TEST_NAME} succeeded"
+
+test_succeeded "${TEST_NAME}"
