@@ -140,7 +140,7 @@ function test_default_policy_configuration {
   wait_for_endpoints 3
   check_endpoints_policy_enabled
   ping_success foo bar
-  ping_fail foo baz
+  ping_fail foo baz || true
 
   cilium policy delete --all
   wait_for_endpoints 3
@@ -190,7 +190,7 @@ function test_true_policy_configuration {
   wait_for_endpoints 3
   check_config_policy_enabled
   check_endpoints_policy_enabled
-  ping_fail foo bar  
+  ping_fail foo bar || true
   import_test_policy
   
   wait_for_endpoints 3
@@ -202,7 +202,7 @@ function test_true_policy_configuration {
   wait_for_endpoints 3
   check_config_policy_enabled
   # TODO - renable when we clear conntrack state upon policy deletion. 
-  # ping_fail foo bar
+  # ping_fail foo bar || true
 }
 
 function test_false_policy_configuration {
@@ -255,7 +255,8 @@ function test_policy_trace_policy_disabled {
   BAR_ID=$(cilium endpoint list | grep id.bar | awk '{ print $1}')  
   log "verify verbose trace for expected output using endpoint IDs "
   TRACE_OUTPUT=$(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v)
-  DIFF=$(diff -Nru <(log "$ALLOWED") <(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v | grep "Verdict:")) || true
+  log "Trace output: ${TRACE_OUTPUT}"
+  DIFF=$(diff -Nru <(echo "$ALLOWED") <(cilium policy trace --src-endpoint $FOO_ID --dst-endpoint $BAR_ID -v | grep "Verdict:")) || true
   if [[ "$DIFF" != "" ]]; then
     abort "DIFF: $DIFF"
   fi
