@@ -63,4 +63,4 @@ if [ "$actual" != "$expected" ]; then
   abort "want $expected got $actual"
 fi
 
-log "$0 passed"
+log "${TEST_NAME} succeeded"
