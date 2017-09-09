@@ -104,3 +104,5 @@ grep "Attempting local delivery for container id " ${DUMP_FILE} | while read -r 
 done
 
 monitor_stop
+
+test_succeeded "${TEST_NAME}"
