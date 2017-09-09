@@ -20,7 +20,7 @@ CONTAINER=monitor_tests
 
 function cleanup {
   docker rm -f $CONTAINER 2> /dev/null || true
-  docker network rm $TEST_NET > /dev/null 2>&1 || true
+  remove_cilium_docker_network
   monitor_stop
 }
 

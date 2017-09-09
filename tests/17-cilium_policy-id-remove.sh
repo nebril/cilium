@@ -16,7 +16,7 @@ function cleanup {
   log "removing containerA and containerB"
   docker rm -f containerA containerB 2> /dev/null || true
   log "removing docker network $TEST_NET"
-  docker network rm $TEST_NET > /dev/null 2>&1 || true
+  remove_cilium_docker_network
   log "cleanup done for $0"
 }
 

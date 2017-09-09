@@ -27,7 +27,7 @@ function cleanup {
   ip addr del dev lo ${IPV6_HOST}/128 2> /dev/null || true
   cilium policy delete --all 2> /dev/null || true
   docker rm -f ${HTTPD_CONTAINER_NAME}  2> /dev/null || true
-  docker network rm ${TEST_NET} 2> /dev/null || true
+  remove_cilium_docker_network
   monitor_stop
 }
 

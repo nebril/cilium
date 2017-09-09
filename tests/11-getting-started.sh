@@ -23,7 +23,7 @@ function cleanup {
   log "removing container ${HTTPD_CONTAINER_NAME}"
   docker rm -f ${HTTPD_CONTAINER_NAME}  2> /dev/null || true
   log "removing Docker network ${TEST_NET}"
-  docker network rm ${TEST_NET} 2> /dev/null || true
+  remove_cilium_docker_network
   monitor_stop
   log "finished cleanup for ${TEST_NAME}"
 }

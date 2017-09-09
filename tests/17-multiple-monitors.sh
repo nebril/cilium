@@ -18,7 +18,7 @@ MON_3_OUTPUT=$(mktemp)
 
 function cleanup {
   docker rm -f demo1 || true
-  docker network rm ${TEST_NET} 2> /dev/null || true
+  remove_cilium_docker_network
 }
 
 function lines_expected {

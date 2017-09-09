@@ -26,7 +26,7 @@ function cleanup {
   docker rm -f foo bar baz 2> /dev/null || true
   policy_delete_and_wait "--all" 2> /dev/null || true
   log "removing docker network $TEST_NET"
-  docker network rm ${TEST_NET} 2> /dev/null || true
+  remove_cilium_docker_network
   cilium config PolicyEnforcement=default || true
   log "cleanup done for ${TEST_NAME}"
 }

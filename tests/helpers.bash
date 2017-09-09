@@ -927,3 +927,9 @@ function create_cilium_docker_network {
     docker network create --ipv6 --subnet ::1/112 --ipam-driver cilium --driver cilium $TEST_NET
   }
 }
+
+function remove_cilium_docker_network {
+  docker network inspect $TEST_NET 2> /dev/null || {
+    docker network rm $TEST_NET > /dev/null 2>&1 
+  }
+}

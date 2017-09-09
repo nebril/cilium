@@ -22,7 +22,7 @@ function setup {
   logs_clear
   monitor_start
   echo "Logging at $DUMP_FILE"
-  docker network rm ${NETWORK} > /dev/null 2>&1 || true
+  remove_cilium_docker_network
   create_cilium_docker_network
   cilium config PolicyEnforcement=always
 }
