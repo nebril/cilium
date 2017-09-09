@@ -152,7 +152,9 @@ function wait_for_endpoints {
   local INFO_CMD="cilium endpoint list"
   local MAX_MINS="2"
   local ERROR_OUTPUT="Timeout while waiting for $NUM_DESIRED endpoints"
+  log "waiting for up to ${MAX_MINS} mins for ${NUM_DESIRED} endpoints to be in \"ready\" state"
   wait_for_desired_state "$NUM_DESIRED" "$CMD" "$INFO_CMD" "$MAX_MINS" "$ERROR_OUTPUT"
+  log "done waiting for up to ${MAX_MINS} mins for ${NUM_DESIRED} endpoints to be in \"ready\" state"
   restore_flag $save "e"
 }
 
@@ -676,12 +678,13 @@ function k8s_apply_policy {
 }
 
 function policy_delete_and_wait {
+  log "deleting policy $* and waiting up to 120 seconds to complete"
   rev=$(cilium policy delete $* | grep Revision: | awk '{print $2}')
   timeout 120s cilium policy wait $rev
 }
 
 function policy_import_and_wait {
-  log "importing policy $* and waiting up to 120 seconds"
+  log "importing policy $* and waiting up to 120 seconds to complete"
   rev=$(cilium policy import $* | grep Revision: | awk '{print $2}')
   timeout 120s cilium policy wait $rev
 }
