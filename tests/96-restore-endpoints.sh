@@ -16,7 +16,7 @@ NETPERF_IMAGE="tgraf/netperf"
 function cleanup {
 	cilium policy delete --all 2> /dev/null || true
 	docker rm -f server1 server2 2> /dev/null || true
-	docker network rm $TEST_NET > /dev/null 2>&1
+	docker network rm $TEST_NET > /dev/null 2>&1 || true
 }
 
 cleanup
