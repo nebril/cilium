@@ -20,7 +20,7 @@ CONTAINER=monitor_tests
 
 function cleanup {
   log "beginning cleanup for $TEST_NAME"
-  docker rm -f $CONTAINER 2> /dev/null || true
+  remove_all_containers
   remove_cilium_docker_network
   monitor_stop
   log "done with cleanup for $TEST_NAME"
@@ -32,11 +32,11 @@ function finish_test {
 }
 
 function spin_up_container {
-  log "starting containers"
+  log "starting container $CONTAINER"
   docker run -d --net cilium --name $CONTAINER -l $CLIENT_LABEL tgraf/netperf > /dev/null 2>&1
   docker exec -ti $CONTAINER ip -6 address list > /dev/null 2>&1
   docker exec -ti $CONTAINER ip -6 route list dev cilium0 > /dev/null 2>&1
-  log "done starting containers"
+  log "done starting container $CONTAINER"
 }
 
 function setup {

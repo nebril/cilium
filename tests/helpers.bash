@@ -935,3 +935,7 @@ function remove_cilium_docker_network {
   docker network rm $TEST_NET > /dev/null 2>&1 
   restore_flag $save "e"
 }
+
+function remove_all_containers {
+  docker rm -f $(docker ps --format '{{.Names}}' | grep -v cilium-consul) > /dev/null 2>&1 || true
+}
