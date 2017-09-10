@@ -33,3 +33,5 @@ n_eps=$(k8s_count_all_cluster_cilium_eps kube-system)
 if [[ $n_eps -eq "0" ]]; then
     abort "The number of endpoints running should not be zero, restore functionality didn't work as expected"
 fi
+
+test_succeeded "${TEST_NAME}"

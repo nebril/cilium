@@ -147,4 +147,4 @@ if [[ "${RETURN//$'\n'}" != "403" ]]; then
 	abort "Error: Unexpected success reaching  ${SVC_IP}/private on port 80"
 fi
 
-log "${TEST_NAME} succeeded"
+test_succeeded "${TEST_NAME}"

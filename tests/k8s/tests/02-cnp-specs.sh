@@ -191,7 +191,7 @@ kubectl exec -t ${productpage_v1} wget -- --connect-timeout=10 --tries=2 ratings
 
 if [ $? -eq 0 ]; then abort "Error: unexpected success from productpage-v1 to ratings:9080 service" ; fi
 
-echo "${TEST_NAME} succeeded"
+test_succeeded "${TEST_NAME}"
 
 set +e
 

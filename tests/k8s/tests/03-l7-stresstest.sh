@@ -139,7 +139,7 @@ kubectl exec -n qa -i ${frontend_pod} -- wrk -t20 -c1000 -d60 "http://${backend_
 #
 #kubectl exec -n qa -i ${frontend_pod} -- ab -r -n 1000000 -c 200 -s 60 -v 1 "http://${backend_svc_ip}:80/"
 
-log "${TEST_NAME} succeeded"
+test_succeeded "${TEST_NAME}"
 
 set +e
 

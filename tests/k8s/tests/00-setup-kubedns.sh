@@ -19,3 +19,5 @@ LOCAL_CILIUM_POD="$(kubectl get pods -n kube-system -o wide | grep $(hostname) |
 wait_for_service_endpoints_ready ${NAMESPACE} kube-dns 53
 wait_for_service_ready_cilium_pod ${NAMESPACE} ${LOCAL_CILIUM_POD} 53 53
 wait_for_cilium_ep_gen k8s ${NAMESPACE} ${LOCAL_CILIUM_POD}
+
+test_succeeded "${TEST_NAME}"

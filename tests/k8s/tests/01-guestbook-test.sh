@@ -200,6 +200,5 @@ if [[ "${k8s_version}" == 1.7.* ]]; then
         }
 fi
 
-log "${TEST_NAME} succeeded"
-
+test_succeeded "${TEST_NAME}"
 set +e
