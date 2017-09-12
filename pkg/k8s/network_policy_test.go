@@ -565,6 +565,7 @@ func (s *K8sSuite) TestNetworkPolicyExamples(c *C) {
 	c.Assert(err, IsNil)
 
 	rules, err = ParseNetworkPolicy(&np)
+	c.Assert(err, IsNil)
 	// add example 2
 	repo.AddList(rules)
 

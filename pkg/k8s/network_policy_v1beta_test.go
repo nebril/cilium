@@ -557,6 +557,7 @@ func (s *K8sSuite) TestNetworkPolicyExamplesDeprecated(c *C) {
 	c.Assert(err, IsNil)
 
 	rules, err = ParseNetworkPolicyDeprecated(&np)
+	c.Assert(err, IsNil)
 	// add example 2
 	repo.AddList(rules)
 

@@ -379,7 +379,7 @@ func (e *Endpoint) Regenerate(owner Owner) <-chan bool {
 	}
 	owner.QueueEndpointBuild(newReq)
 	go func(req *Request, e *Endpoint) {
-		buildSuccess := true
+		var buildSuccess bool
 
 		e.Mutex.Lock()
 		// If endpoint was marked as disconnected then
