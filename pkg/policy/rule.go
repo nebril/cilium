@@ -85,7 +85,7 @@ func mergeL4IngressPort(ctx *SearchContext, endpoints []api.EndpointSelector, en
 		if ep, ok := existingFilter.L7RulesPerEp[hash]; ok {
 			switch {
 			case len(newL7Rules.HTTP) > 0:
-				if len(ep.Kafka) > 0 {
+				if len(ep.Kafka) > 0 || len(ep.BinaryMemcache) > 0 {
 					ctx.PolicyTrace("   Merge conflict: mismatching L7 rule types.\n")
 					return 0, fmt.Errorf("Cannot merge conflicting L7 rule types")
 				}
@@ -96,7 +96,7 @@ func mergeL4IngressPort(ctx *SearchContext, endpoints []api.EndpointSelector, en
 					}
 				}
 			case len(newL7Rules.Kafka) > 0:
-				if len(ep.HTTP) > 0 {
+				if len(ep.HTTP) > 0 || len(ep.BinaryMemcache) > 0 {
 					ctx.PolicyTrace("   Merge conflict: mismatching L7 rule types.\n")
 					return 0, fmt.Errorf("Cannot merge conflicting L7 rule types")
 				}
@@ -104,6 +104,17 @@ func mergeL4IngressPort(ctx *SearchContext, endpoints []api.EndpointSelector, en
 				for _, newRule := range newL7Rules.Kafka {
 					if !newRule.Exists(ep) {
 						ep.Kafka = append(ep.Kafka, newRule)
+					}
+				}
+			case len(newL7Rules.BinaryMemcache) > 0:
+				if len(ep.HTTP) > 0 || len(ep.Kafka) > 0 {
+					ctx.PolicyTrace("   Merge conflict: mismatching L7 rule types.\n")
+					return 0, fmt.Errorf("Cannot merge conflicting L7 rule types")
+				}
+
+				for _, newRule := range newL7Rules.BinaryMemcache {
+					if !newRule.Exists(ep) {
+						ep.BinaryMemcache = append(ep.BinaryMemcache, newRule)
 					}
 				}
 			default:

@@ -72,4 +72,9 @@ type L7Rules struct {
 	//
 	// +optional
 	Kafka []PortRuleKafka `json:"kafka,omitempty"`
+
+	// BinaryMemcache-specific rules.
+	//
+	// +optional
+	BinaryMemcache []PortRuleMemcache `json:"binary-memcache,omitempty"`
 }

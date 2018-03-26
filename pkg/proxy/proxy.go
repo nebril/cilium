@@ -214,6 +214,9 @@ retryCreatePort:
 		case policy.ParserTypeKafka:
 			redir.implementation, err = createKafkaRedirect(redir, kafkaConfiguration{}, DefaultEndpointInfoRegistry)
 
+		case policy.ParserTypeBinaryMemcache:
+			redir.implementation, err = createBmcRedirect(redir, bmcConfiguration{})
+
 		case policy.ParserTypeHTTP:
 			redir.implementation, err = createEnvoyRedirect(redir, p.stateDir, p.XDSServer, wg)
 
