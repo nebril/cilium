@@ -1,0 +1,14 @@
+[ {
+    "endpointSelector": {"matchLabels":{"id":"memcache"}},
+    "ingress": [ {
+      "fromEndpoints": [
+        {"matchLabels":{"id":"memcache-client"}}
+      ],
+      "toPorts": [{
+          "ports": [{"port": "11211", "protocol": "TCP"}],
+          "rules": {
+              "binary-memcache": [ {"Opcode": "get"}, {"Opcode": "set"}, {"Opcode": "stat"} ]
+          }
+      }]
+   }]
+}]
