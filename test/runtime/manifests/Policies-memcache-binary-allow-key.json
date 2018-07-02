@@ -7,7 +7,7 @@
       "toPorts": [{
           "ports": [{"port": "11211", "protocol": "TCP"}],
           "rules": {
-              "binary-memcache": [ {"Opcode": "get"}, {"Opcode": "set"}, {"Opcode": "stat"} ]
+              "binary-memcache": [ {"Opcode": "get"}, {"Opcode": "set", "key":"allowed"}, {"Opcode": "stat"} ]
           }
       }]
    }]

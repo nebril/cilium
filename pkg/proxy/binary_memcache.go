@@ -15,15 +15,17 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/cilium/cilium/pkg/completion"
-	"github.com/cilium/cilium/pkg/flowdebug"
-	"github.com/cilium/cilium/pkg/identity"
 	"io"
 	"time"
 	"unicode"
-	//	"github.com/cilium/cilium/pkg/kafka"
+
+	"github.com/cilium/cilium/pkg/completion"
+	"github.com/cilium/cilium/pkg/flowdebug"
+	"github.com/cilium/cilium/pkg/identity"
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/policy/api"
@@ -109,7 +111,8 @@ func createBmcRedirect(r *Redirect, conf bmcConfiguration) (RedirectImplementati
 
 // canAccess determines if the memcache req sent by identity is allowed to
 // be forwarded according to the rules configured on binaryMemcacheRedirect
-func (bmc bmcRedirect) canAccess(opCode byte, srcIdentity identity.NumericIdentity) bool {
+func (bmc bmcRedirect) canAccess(opCode byte, key string, srcIdentity identity.NumericIdentity) bool {
+	log.WithField("canAccess", "canAccess").Warn("canAccess")
 	var id *identity.Identity
 
 	if srcIdentity != 0 {
@@ -143,7 +146,8 @@ func (bmc bmcRedirect) canAccess(opCode byte, srcIdentity identity.NumericIdenti
 	}
 
 	for _, rule := range rules.BinaryMemcache {
-		if opCode == api.MemcacheOpCodeMap[rule.OpCode] {
+		log.WithField("rulekey", rule.Key).WithField("extracted-key", key).Warn("key comparison")
+		if (rule.Key == "" || key == rule.Key) && opCode == api.MemcacheOpCodeMap[rule.OpCode] {
 			return true
 		}
 	}
@@ -200,7 +204,13 @@ func (bmc *bmcRedirect) handleRequest(pair *connectionPair, buf []byte) {
 	}
 
 	op_code := buf[1]
-	if !bmc.canAccess(op_code, identity.NumericIdentity(srcIdentity)) {
+	key, err := getMemcacheKey(buf)
+	if err != nil {
+		scopedLog.WithField("opCode",
+			op_code).WithError(err).Error("Unable to retrieve memcache key")
+		return
+	}
+	if !bmc.canAccess(op_code, key, identity.NumericIdentity(srcIdentity)) {
 		flowdebug.Log(scopedLog, "Memcache request is denied by policy")
 
 		// Send a 0x0024 'No Access' error
@@ -225,6 +235,19 @@ func (bmc *bmcRedirect) handleRequest(pair *connectionPair, buf []byte) {
 	// Write the entire raw request onto the outgoing connection
 
 	pair.Tx.Enqueue(buf)
+}
+
+func getMemcacheKey(packet []byte) (string, error) {
+	var keyLength uint16
+	keyBuf := bytes.NewReader(packet[2:4])
+	err := binary.Read(keyBuf, binary.BigEndian, &keyLength)
+	if err != nil {
+		return "", err
+	}
+	var extrasLength uint8
+	extrasLength = packet[4]
+
+	return string(packet[24+extrasLength : 24+uint16(extrasLength)+keyLength]), nil
 }
 
 type bmcReqMessageHandler func(pair *connectionPair, buf []byte)
@@ -273,7 +296,7 @@ func (bmc *bmcRedirect) handleRequests(done <-chan struct{}, pair *connectionPai
 		mcPrintData(hdr, n)
 
 		if hdr[0] != 0x80 {
-			scopedLog.Error(fmt.Sprint("Invalid request magic byte '%x', expected 0x80.  Cannot parse as Binary Memcache", hdr[0]))
+			scopedLog.Error(fmt.Sprintf("Invalid request magic byte '%x', expected 0x80.  Cannot parse as Binary Memcache", hdr[0]))
 			return
 		}
 		additional_len := int32(uint32(hdr[11]) | uint32(hdr[10])<<8 | uint32(hdr[9])<<16 | uint32(hdr[8])<<24)

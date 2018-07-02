@@ -16,7 +16,6 @@ package RuntimeTest
 
 import (
 	"fmt"
-
 	. "github.com/cilium/cilium/test/ginkgo-ext"
 	"github.com/cilium/cilium/test/helpers"
 
@@ -41,7 +40,6 @@ var _ = Describe(memcacheTestName, func() {
 			"memcache":        "memcached",
 			"memcache-client": "nebril/python-binary-memcached",
 		}
-
 		cmds := map[string][]string{
 			"memcache-client": {"sleep", "10000"},
 		}
@@ -70,7 +68,7 @@ var _ = Describe(memcacheTestName, func() {
 	setKey := func(key, value string) *helpers.CmdRes {
 		logger.Infof("Setting %s as %s", key, value)
 		res := vm.ContainerExec("memcache-client", fmt.Sprintf(
-			"python -c 'import bmemcached; client = bmemcached.Client((\"%s:11211\", )); client.set(\"%s\", \"%s\")'", memcacheIP, key, value))
+			"python -c 'import bmemcached; client = bmemcached.Client((\"%s:11211\", )); print(client.set(\"%s\", \"%s\"))'", memcacheIP, key, value))
 		return res
 	}
 
@@ -167,5 +165,25 @@ var _ = Describe(memcacheTestName, func() {
 		r = getKey(keyBeforePolicy)
 		r.ExpectSuccess("Unable to get key set before applying policy")
 		Expect(r.GetStdOut()).Should(ContainSubstring(valBeforePolicy))
+	})
+
+	It("Tests policy allowing actions only for key", func() {
+		By("Importing key-specific policy")
+		_, err := vm.PolicyImportAndWait(vm.GetFullPath("Policies-memcache-binary-allow-key.json"), 300)
+		Expect(err).Should(BeNil())
+
+		key := "allowed"
+		value := "value"
+		By("Setting memcache allowed key")
+		r := setKey(key, value)
+		r.ExpectSuccess("Unable to set allowed key")
+		By("Getting memcache allowed key")
+		r = getKey(key)
+		r.ExpectSuccess("Unable to get allowed key")
+
+		key = "disallowed"
+		By("Setting memcache disallowed key")
+		r = setKey(key, value)
+		r.ExpectFail("Able to set disallowed key")
 	})
 })
