@@ -296,3 +296,7 @@ required = [
 [[constraint]]
   name = "github.com/hashicorp/go-immutable-radix"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/xwb1989/sqlparser"
+  revision = "120387863bf27d04bc07db8015110a6e96d0146c"

@@ -1143,6 +1143,19 @@
   revision = "13995c7128ccc8e51e9a6bd2b551020a27180abd"
 
 [[projects]]
+  digest = "1:61ef8bf53ae82c329c1891636d9d9a8f505d5da583e6283724c18802cbfc75be"
+  name = "github.com/xwb1989/sqlparser"
+  packages = [
+    ".",
+    "dependency/bytes2",
+    "dependency/hack",
+    "dependency/querypb",
+    "dependency/sqltypes",
+  ]
+  pruneopts = "NUT"
+  revision = "120387863bf27d04bc07db8015110a6e96d0146c"
+
+[[projects]]
   digest = "1:0dea92322600b83d86e3ad7c10770e03a92d6aae9bd0b7e8620e38653f030769"
   name = "golang.org/x/crypto"
   packages = [
@@ -1736,6 +1749,7 @@
     "github.com/spf13/viper",
     "github.com/tylerb/graceful",
     "github.com/vishvananda/netlink",
+    "github.com/xwb1989/sqlparser",
     "golang.org/x/crypto/ssh",
     "golang.org/x/crypto/ssh/agent",
     "golang.org/x/net/context",
