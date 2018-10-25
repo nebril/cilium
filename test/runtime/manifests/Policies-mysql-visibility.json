@@ -1,0 +1,17 @@
+[ {
+    "endpointSelector": {"matchLabels":{"mysql-server":""}},
+    "ingress": [ {
+      "fromEndpoints": [
+        {"matchLabels":{"mysql-client":""}}
+      ],
+      "toPorts": [{
+          "ports": [{"port": "3306", "protocol": "TCP"}],
+          "rules": {
+			  "l7proto": "mysql",
+			  "l7": [
+				  {}
+			  ]
+          }
+      }]
+   }]
+}]
