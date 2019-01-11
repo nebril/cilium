@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/cilium/cilium/api/v1/models"
 	"github.com/cilium/cilium/pkg/fqdn"
@@ -158,6 +159,8 @@ var _ = Describe("RuntimeFQDNPolicies", func() {
 			WorldHttpd1: helpers.HttpdImage,
 			WorldHttpd2: helpers.HttpdImage,
 			WorldHttpd3: helpers.HttpdImage,
+			"dnsperf":   "nebril/dnsperf",
+			"dnsperf2":  "nebril/dnsperf",
 		}
 
 		ciliumOutsideImages = map[string]string{
@@ -227,13 +230,13 @@ var _ = Describe("RuntimeFQDNPolicies", func() {
 		res := vm.ContainerCreate(
 			bindContainerName,
 			bindContainerImage,
-			"bridge",
+			worldNetwork,
 			fmt.Sprintf("-p 53:53/udp -p 53:53/tcp -v /data:/data -l id.bind -e DNSSEC_DOMAIN=%s", DNSSECDomain))
 		res.ExpectSuccess("Cannot start bind container")
 
 		res = vm.ContainerInspect(bindContainerName)
 		res.ExpectSuccess("Container is not ready after create it")
-		ip, err := res.Filter(`{[0].NetworkSettings.Networks.bridge.IPAddress}`)
+		ip, err := res.Filter(`{[0].NetworkSettings.Networks.world.IPAddress}`)
 		DNSServerIP = ip.String()
 		Expect(err).To(BeNil(), "Cannot retrieve network info for %q", bindContainerName)
 
@@ -259,6 +262,7 @@ var _ = Describe("RuntimeFQDNPolicies", func() {
 
 	AfterAll(func() {
 		// @TODO remove this one when DNS proxy is in place.
+
 		vm.ExecWithSudo(`bash -c 'echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" > /etc/resolv.conf'`)
 		for name := range ciliumTestImages {
 			vm.ContainerRm(name)
@@ -270,6 +274,7 @@ var _ = Describe("RuntimeFQDNPolicies", func() {
 		vm.SampleContainersActions(helpers.Delete, "")
 		vm.ContainerRm(bindContainerName)
 		vm.Exec(fmt.Sprintf("docker network rm  %s", worldNetwork))
+
 	})
 
 	JustBeforeEach(func() {
@@ -340,7 +345,7 @@ var _ = Describe("RuntimeFQDNPolicies", func() {
 	  }],
     "endpointSelector": {
       "matchLabels": {
-        "container:id.app1": ""
+        "container:id.dnsperf": ""
       }
     },
     "egress": [
@@ -1018,6 +1023,326 @@ INITSYSTEM=SYSTEMD`
 		Expect(vm.RestartCilium()).To(BeNil(), "Cilium cannot be started correctly")
 
 		// Policies on docker are not persistant, so the restart connectivity is not tested at all
+	})
+
+	type proxyPerfTest struct {
+		clients   int
+		seconds   int
+		queryfile string
+	}
+	It("Runs dnsperf to test proxy performance", func() {
+		mixed := "queryfile-mixed"
+		allowed := "queryfile-allowed"
+		denied := "queryfile-denied"
+
+		getStats := func(output string) string {
+			return output[strings.Index(output, "Statistics"):len(output)]
+		}
+
+		getCmd := func(test proxyPerfTest) string {
+			return fmt.Sprintf(
+				"dnsperf -s %s -d %s -l %d -T 2 -c %d",
+				DNSServerIP, test.queryfile, test.seconds, test.clients)
+		}
+
+		tests := []proxyPerfTest{
+			{
+				10000, 10, mixed,
+			},
+			{
+				10000, 10, allowed,
+			},
+			{
+				10000, 10, denied,
+			},
+			{
+				10000, 30, mixed,
+			},
+			{
+				10000, 30, allowed,
+			},
+			{
+				10000, 30, denied,
+			},
+			{
+				20000, 10, mixed,
+			},
+			{
+				20000, 10, allowed,
+			},
+			{
+				20000, 10, denied,
+			},
+			{
+				20000, 30, mixed,
+			},
+			{
+				20000, 30, allowed,
+			},
+			{
+				20000, 30, denied,
+			},
+		}
+
+		for _, test := range tests {
+			cmd := getCmd(test)
+			outputs := make(chan string)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf2", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			fmt.Println("No policy two pods", test.queryfile)
+			for range []int{1, 2} {
+				fmt.Println(<-outputs)
+			}
+			fmt.Println("###################################")
+		}
+
+		By("Importing policy with ToFQDN rule")
+		// notaname.cilium.io never returns IPs, and is there to test that the
+		// other name does get populated.
+		fqdnPolicy := `
+[
+  {
+    "labels": [{
+	  	"key": "toFQDNs-runtime-test-policy"
+	  }],
+    "endpointSelector": {
+      "matchLabels": {
+        "container:id.dnsperf": ""
+      }
+    },
+    "egress": [
+      {
+		  "toPorts": [{
+			  "ports":[{"port": "53", "protocol": "ANY"}],
+			  "rules": {
+				  "dns": [
+				  {"matchPattern": "world1.cilium.test"}
+				  ]
+			  }
+		  }]
+      },
+      {
+        "toFQDNs": [
+          {
+            "matchPattern": "*.*"
+          }
+        ]
+      }
+    ]
+  }
+]`
+		_, err := vm.PolicyRenderAndImport(fqdnPolicy)
+		Expect(err).To(BeNil(), "Unable to import policy: %s", err)
+
+		for _, test := range tests {
+			cmd := getCmd(test)
+			outputs := make(chan string)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf2", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			fmt.Println("One rule policy two pods", test.queryfile)
+			for range []int{1, 2} {
+				fmt.Println(<-outputs)
+			}
+			fmt.Println("###################################")
+		}
+
+		By("Importing policy with 100 ToFQDN rule")
+		fqdnPolicy = `
+[
+  {
+    "labels": [{
+	  	"key": "toFQDNs-runtime-test-policy"
+	  }],
+    "endpointSelector": {
+      "matchLabels": {
+        "container:id.dnsperf": ""
+      }
+    },
+    "egress": [
+      {
+		  "toPorts": [{
+			  "ports":[{"port": "53", "protocol": "ANY"}],
+			  "rules": {
+				  "dns": [
+				  {"matchPattern": "world1.cilium.test"}
+				  ]
+			  }
+		  }]
+      },
+      {
+        "toFQDNs": [
+          {
+            "matchName": "thumbs2.ebaystatic.com",
+            "matchName": "mountaineerpublishing.com",
+            "matchName": "www.mediafire.com",
+            "matchName": "s-static.ak.fbcdn.net",
+            "matchName": "lachicabionica.com",
+            "matchName": "www.freemarket.com",
+            "matchName": "sip.hotmail.com",
+            "matchName": "www.cangrejas.com",
+            "matchName": "google.com",
+            "matchName": "cache.defamer.com",
+            "matchName": "developers.facebook.com",
+            "matchName": "www.eucarvet.eu",
+            "matchName": "mail.mobilni-telefony.biz",
+            "matchName": "microsoft-powerpoint-2010.softonic.it",
+            "matchName": "profile.ak.fbcdn.net",
+            "matchName": "www.zunescene.mobi",
+            "matchName": "ads.smowtion.com",
+            "matchName": "196.127.197.94.in-addr.arpa",
+            "matchName": "armandi.ru",
+            "matchName": "solofarandulaperu.blogspot.com",
+            "matchName": "m.addthisedge.com",
+            "matchName": "ssl.google-analytics.com",
+            "matchName": "243.35.149.83.in-addr.arpa",
+            "matchName": "105.138.138.201.in-addr.arpa",
+            "matchName": "www.reuters.com",
+            "matchName": "mail.sodoit.com",
+            "matchName": "www.download.windowsupdate.com",
+            "matchName": "resquare.ca",
+            "matchName": "photos-e.ak.fbcdn.net",
+            "matchName": "csi.gstatic.com",
+            "matchName": "www.darty.lu",
+            "matchName": "6138.7370686f746f73.616b.666263646e.6e6574.80h3f617b3a.webcfs00.com",
+            "matchName": "frycomm.com.s9b2.psmtp.com",
+            "matchName": "www.apple.com",
+            "matchName": "www.haacked.com",
+            "matchName": "www.jujiaow.com",
+            "matchName": "170.44.153.187.in-addr.arpa",
+            "matchName": "a1007.w43.akamai.net",
+            "matchName": "api.facebook.com",
+            "matchName": "dns.msftncsi.com",
+            "matchName": "sageinc.com",
+            "matchName": "a.root-servers.net",
+            "matchName": "google.com",
+            "matchName": "photos-a.ak.fbcdn.net",
+            "matchName": "developers.facebook.com",
+            "matchName": "a995.mm1.akamai.net",
+            "matchName": "a.root-servers.net",
+            "matchName": "api.twitter.com",
+            "matchName": "a.root-servers.net",
+            "matchName": "pub.reggaefrance.com",
+            "matchName": "an.d.chango.com",
+            "matchName": "mogesa.com.mx",
+            "matchName": "0.11-a3092481.20483.1518.18a4.3ea1.410.0.ezg6u89nikkw32n9ssr1pcd8ei.avqs.mcafee.com",
+            "matchName": "www.gossiponthis.com",
+            "matchName": "www.asil.com.ar",
+            "matchName": "mail.mastertex.com",
+            "matchName": "www.foxsportsla.com",
+            "matchName": "profile.ak.fbcdn.net",
+            "matchName": "picture.immobilienscout24.de",
+            "matchName": "138.191.114.187.in-addr.arpa",
+            "matchName": "71.209.110.187.in-addr.arpa",
+            "matchName": "education.idoneos.com",
+            "matchName": "api.twitter.com",
+            "matchName": "photos-c.ak.fbcdn.net",
+            "matchName": "kepco.co.kr",
+            "matchName": "developers.facebook.com",
+            "matchName": "i2.ytimg.com",
+            "matchName": "202.160.142.190.in-addr.arpa",
+            "matchName": "blogparts.okwave.jp",
+            "matchName": "3.254.244.201.in-addr.arpa",
+            "matchName": "edge.quantserve.com",
+            "matchName": "a6.sphotos.ak.fbcdn.net",
+            "matchName": "hi-in.facebook.com",
+            "matchName": "cjqxdgoea.q61b6c1l",
+            "matchName": "google.com.mx",
+            "matchName": "profile.ak.fbcdn.net",
+            "matchName": "233.252.0.201.in-addr.arpa",
+            "matchName": "local-bay.contacts.msn.com",
+            "matchName": "www.facebook.com",
+            "matchName": "creative.ak.fbcdn.net",
+            "matchName": "ad.afy11.net",
+            "matchName": "es-es.facebook.com",
+            "matchName": "175.130.35.186.in-addr.arpa",
+            "matchName": "ares.jsc.nasa.gov",
+            "matchName": "madewithluv.com",
+            "matchName": "252.0.168.192.in-addr.arpa",
+            "matchName": "iztvkxdza.z57y1u5n",
+            "matchName": "quakerfabric.com",
+            "matchName": "s306.videobb.com",
+            "matchName": "washeen91.writingjob.hop.clickbank.net",
+            "matchName": "155.56.250.190.in-addr.arpa",
+            "matchName": "1.0.0.127.in-addr.arpa",
+            "matchName": "iguanas.mex.tl",
+            "matchName": "habbo.com.mx",
+            "matchName": "es-es.facebook.com",
+            "matchName": "www.gossipsauce.com",
+            "matchName": "251.206.15.201.in-addr.arpa",
+            "matchName": "trk.paid-surveys-at-home.com",
+            "matchName": "a.root-servers.net",
+            "matchName": "a7.sphotos.ak.fbcdn.net"
+          }
+        ]
+      }
+    ]
+  }
+]`
+		_, err = vm.PolicyRenderAndImport(fqdnPolicy)
+		Expect(err).To(BeNil(), "Unable to import policy: %s", err)
+
+		for _, test := range tests {
+			cmd := getCmd(test)
+			outputs := make(chan string)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			go func(cmd string) {
+				defer GinkgoRecover()
+
+				res := vm.ContainerExec("dnsperf2", cmd)
+				res.ExpectSuccess("Failed to run dnsperf")
+
+				outputs <- getStats(res.CombineOutput().String())
+			}(cmd)
+
+			fmt.Println("100 rules policy two pods", test.queryfile)
+			for range []int{1, 2} {
+				fmt.Println(<-outputs)
+			}
+			fmt.Println("###################################")
+		}
 	})
 })
 
