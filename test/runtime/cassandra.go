@@ -24,11 +24,11 @@ import (
 )
 
 var _ = Describe("RuntimeCassandra", func() {
-
 	var (
 		vm          *helpers.SSHMeta
 		cassandraIP string
 	)
+	func
 
 	containers := func(mode string) {
 
