@@ -15,9 +15,7 @@
 package k8sTest
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cilium/cilium/test/config"
@@ -150,18 +148,6 @@ func SkipIfIntegration(integration string) {
 func SkipItIfNoKubeProxy() {
 	if !helpers.RunsWithKubeProxy() {
 		Skip("kube-proxy is disabled (NodePort BPF is enabled). Skipping test.")
-	}
-}
-
-// SkipIfKernel will skip if kernel version matches provided string
-func SkipIfKernel(ctx context.Context, kubectl *helpers.Kubectl, version string) {
-	res, err := kubectl.ExecInFirstPod(ctx, helpers.LogGathererNamespace, "k8s-app=cilium-test-logs", "uname -r")
-	if err != nil {
-		log.Warningf("Unable to run uname in log gatherer: %s", err.Error())
-		return
-	}
-	if strings.Contains(res.OutputPrettyPrint(), version) {
-		Skip(fmt.Sprintf("Skipping on kernel version %s", version))
 	}
 }
 
