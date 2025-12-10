@@ -167,6 +167,6 @@ stages-config:
   label: auto-cicd
   stages:
     - names:
-        - image-build-releases-ci.yaml
-        - tests-smoke.yaml
-      command: /test
+        - lint-codeowners.yaml
+        - codeql.yaml
+      command: /after-test
