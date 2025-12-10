@@ -162,3 +162,11 @@ workflows:
     paths-ignore-regex: ((bpf/complexity-tests|bpf/tests|test|Documentation|hubble|.github/actions/cl2-modules)/|(.github/renovate\.json5|README.rst|CODEOWNERS|stable.txt|.*\.md|.*_test\.go)$)
   hubble-cli-integration-test.yaml:
     paths-ignore-regex: ((bpf/complexity-tests|bpf/tests|test|Documentation|.github/actions/cl2-modules)/|(.github/renovate\.json5|README.rst|CODEOWNERS|stable.txt|.*\.md)$)
+    
+stages-config:
+  label: auto-cicd
+  stages:
+    - workflows:
+        - lint-codeowners.yaml
+        - codeql.yaml
+      command: /after-test
