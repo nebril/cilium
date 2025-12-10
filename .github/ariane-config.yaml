@@ -166,7 +166,7 @@ workflows:
 stages-config:
   label: auto-cicd
   stages:
-    - names:
+    - workflows:
         - lint-codeowners.yaml
         - codeql.yaml
       command: /after-test
