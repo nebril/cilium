@@ -2,6 +2,9 @@ allowed-teams:
   - organization-members
 
 triggers:
+  /default:
+    workflows:
+    - codeql.yaml
   /test\s*:
     workflows:
     - conformance-aws-cni.yaml
