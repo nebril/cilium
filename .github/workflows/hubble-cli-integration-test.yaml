@@ -86,6 +86,8 @@ jobs:
         with:
           sha: ${{ inputs.SHA || github.sha }}
           status: pending
+      - name: wait
+        run: sleep 61
 
   merge-upload-and-status:
     name: Merge Upload and Status
